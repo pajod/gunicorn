@@ -117,7 +117,7 @@ try:
 
 except ImportError:
 
-    class InotifyReloader(object):
+    class InotifyReloader:
         def __init__(self, extra_files=None, callback=None):
             raise ImportError('You must have the inotify module installed to '
                               'use the inotify reloader')
