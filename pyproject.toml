@@ -87,3 +87,98 @@ find = {namespaces = false}
 
 [tool.setuptools.dynamic]
 version = {attr = "gunicorn.__version__"}
+
+[tool.mypy]
+# protect against typos here
+warn_unused_configs = true
+no_implicit_reexport = true
+warn_unused_ignores = true
+strict_equality = true
+
+[[tool.mypy.overrides]]
+# gevent known to not be typed
+module = "eventlet"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# gevent known to not be typed
+module = "gevent"
+ignore_missing_imports = true
+
+[tool.pypuprade]
+# pyupgrade does not read this. specify --py37-plus yourself
+
+[tool.black]
+line-length = 119
+target-version = ["py37", "py38", "py39", "py310", "py311", "py312"]
+
+[tool.isort]
+line_length = 119
+# changes stdlib category - all or auto (=current) can produce inconsistent results
+# py_version = "py310"
+profile = "black"
+
+[tool.pylint."main"]
+# section renamed
+ignore = ["build", "docs", "examples", "scripts", "_compat.py", "_gaiohttp.py",]
+
+[tool.pylint."format"]
+max-line-length = 120
+
+[tool.pylint."messages control"]
+disable = [
+  "raw-checker-failed",
+  "bad-inline-option",
+  "locally-disabled",
+  "file-ignored",
+  "suppressed-message",
+  "useless-suppression",
+  "deprecated-pragma",
+  "use-symbolic-message-instead",
+  "use-implicit-booleaness-not-comparison-to-string",
+  "use-implicit-booleaness-not-comparison-to-zero",
+  "attribute-defined-outside-init",
+  "bad-mcs-classmethod-argument",
+  "bare-except",
+  "broad-exception-caught",
+  "duplicate-bases",
+  "duplicate-code",
+  "eval-used",
+  "fixme",
+  "import-error",
+  "import-outside-toplevel",
+  "import-self",
+  "inconsistent-return-statements",
+  "invalid-name",
+  "missing-module-docstring",
+  "missing-class-docstring",
+  "missing-function-docstring",
+  "no-else-return",
+  "no-member",
+  "no-self-argument",
+  "no-staticmethod-decorator",
+  "not-callable",
+  "protected-access",
+  "raise-missing-from",
+  "redefined-outer-name",
+  "too-few-public-methods",
+  "too-many-arguments",
+  "too-many-branches",
+  "too-many-instance-attributes",
+  "too-many-lines",
+  "too-many-locals",
+  "too-many-nested-blocks",
+  "too-many-public-methods",
+  "too-many-statements",
+  "wrong-import-position",
+  "wrong-import-order",
+  "ungrouped-imports",
+  "unused-argument",
+  "useless-object-inheritance",
+  "useless-import-alias",
+  "comparison-with-callable",
+  "try-except-raise",
+  "consider-using-with",
+  "consider-using-f-string",
+  "unspecified-encoding",
+]
