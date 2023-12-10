@@ -48,5 +48,5 @@ jobs:
           cp --archive source/dist/*{.tar.gz,.whl} upload/
       - uses: actions/upload-artifact@v3
         with:
-          path: dist
-          name: upload
+          path: upload
+          name: dist
