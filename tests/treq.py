@@ -146,7 +146,7 @@ class request:
 
         if body:
             raise AssertionError("Failed to read entire body: %r" % body)
-        elif data:
+        if data:
             raise AssertionError("Read beyond expected body: %r" % data)
         data = req.body.read(sizes())
         if data:
@@ -168,7 +168,7 @@ class request:
                 raise AssertionError("Apparent unexpected EOF")
         if body:
             raise AssertionError("Failed to read entire body: %r" % body)
-        elif data:
+        if data:
             raise AssertionError("Read beyond expected body: %r" % data)
         data = req.body.readline(sizes())
         if data:
