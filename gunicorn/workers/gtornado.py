@@ -4,6 +4,7 @@
 
 import os
 import sys
+import warnings
 
 try:
     import tornado
@@ -17,14 +18,17 @@ from gunicorn.workers.base import Worker
 from gunicorn import __version__ as gversion
 from gunicorn.sock import ssl_context
 
+if tornado.version_info < (5, 0, 0):
+    raise RuntimeError("Tornado 5 support has been removed. Please upgrade.")
 
-# Tornado 5.0 updated its IOLoop, and the `io_loop` arguments to many
-# Tornado functions have been removed in Tornado 5.0. Also, they no
-# longer store PeriodCallbacks in ioloop._callbacks. Instead we store
-# them on our side, and use stop() on them when stopping the worker.
-# See https://www.tornadoweb.org/en/stable/releases/v5.0.0.html#backwards-compatibility-notes
-# for more details.
-TORNADO5 = tornado.version_info >= (5, 0, 0)
+if tornado.version_info < (6, 3, 3):
+    try:
+        from tornado.http1connection import parse_int as _
+    except ImportError:
+        warnings.warn(
+            "Tornado versions below 6.3.3 may have unresolved security problems. Please upgrade.",
+            DeprecationWarning,
+        )
 
 
 class TornadoWorker(Worker):
@@ -69,13 +73,9 @@ class TornadoWorker(Worker):
                         pass
                 self.server_alive = False
             else:
-                if TORNADO5:
-                    for callback in self.callbacks:
-                        callback.stop()
-                    self.ioloop.stop()
-                else:
-                    if not self.ioloop._callbacks:
-                        self.ioloop.stop()
+                for callback in self.callbacks:
+                    callback.stop()
+                self.ioloop.stop()
 
     def init_process(self):
         # IOLoop cannot survive a fork or be shared across processes
@@ -90,15 +90,11 @@ class TornadoWorker(Worker):
         self.alive = True
         self.server_alive = False
 
-        if TORNADO5:
-            self.callbacks = []
-            self.callbacks.append(PeriodicCallback(self.watchdog, 1000))
-            self.callbacks.append(PeriodicCallback(self.heartbeat, 1000))
-            for callback in self.callbacks:
-                callback.start()
-        else:
-            PeriodicCallback(self.watchdog, 1000, io_loop=self.ioloop).start()
-            PeriodicCallback(self.heartbeat, 1000, io_loop=self.ioloop).start()
+        self.callbacks = []
+        self.callbacks.append(PeriodicCallback(self.watchdog, 1000))
+        self.callbacks.append(PeriodicCallback(self.heartbeat, 1000))
+        for callback in self.callbacks:
+            callback.start()
 
         # Assume the app is a WSGI callable if its not an
         # instance of tornado.web.Application or is an
@@ -132,23 +128,16 @@ class TornadoWorker(Worker):
 
             class _HTTPServer(tornado.httpserver.HTTPServer):
 
-                def on_close(instance, server_conn):
+                def on_close(self, server_conn):
                     self.handle_request()
                     super().on_close(server_conn)
 
             server_class = _HTTPServer
 
         if self.cfg.is_ssl:
-            if TORNADO5:
-                server = server_class(app, ssl_options=ssl_context(self.cfg))
-            else:
-                server = server_class(app, io_loop=self.ioloop,
-                                      ssl_options=ssl_context(self.cfg))
+            server = server_class(app, ssl_options=ssl_context(self.cfg))
         else:
-            if TORNADO5:
-                server = server_class(app)
-            else:
-                server = server_class(app, io_loop=self.ioloop)
+            server = server_class(app)
 
         self.server = server
         self.server_alive = True
