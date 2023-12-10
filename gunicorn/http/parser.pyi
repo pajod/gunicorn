@@ -1,6 +1,5 @@
-from typing import Self
-
 from _typeshed import Incomplete
+from typing_extensions import Self
 
 from gunicorn.config import Config as Config
 from gunicorn.http.message import Request as Request
