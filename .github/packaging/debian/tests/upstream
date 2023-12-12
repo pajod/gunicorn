@@ -1,0 +1,12 @@
+#!/bin/sh
+
+set -e
+
+cp -r tests ${AUTOPKGTEST_TMP}
+cd ${AUTOPKGTEST_TMP}
+
+# --override-init: pyproject.toml refers to not installed plugins
+
+for p in $(pyversions -s); do
+    $p -m pytest --override-ini=addopts= tests/
+done

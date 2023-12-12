@@ -1,4 +1,4 @@
-name: ubuntu
+name: buildpackage
 on:
   push:
     tags:
@@ -17,35 +17,76 @@ env:
   # note that some tools care only for the name, not the value
   FORCE_COLOR: 1
 
+  # reduce metadata, unlike elsewhere, build artifacts should differ by content only
+  SOURCE_DATE_EPOCH: 0
+
 jobs:
   lint:
-    name: debian-${{ matrix.python-version }}
+    name: buildpackage-${{ matrix.python-version }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: true
       matrix:
-        python-version: [ "3.x" ]
+        python-version: [ "os-py" ]
     steps:
       - uses: actions/checkout@v4
         with:
           path: source
-      - name: Using Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
-          cache: pip
-      - name: Install Dependencies
+      - name: prepare deb source dir (workaround)
+        # why the incorrect version? because this way we can skip rewrite debian/changelog for now
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install build
-      - name: make dist
+          mkdir --verbose --parents upload/workaround
+          mkdir --verbose --parents workaround
+          ( cd source/ && git archive --format=tar --prefix=gunicorn-21.2.0/ HEAD | gzip ) > workaround/gunicorn_21.2.0.orig.tar.gz
+          ( cd workaround/ && tar --extract --file gunicorn_21.2.0.orig.tar.gz gunicorn-21.2.0 )
+          test -s workaround/gunicorn-21.2.0/pyproject.toml
+          rsync -vrlt source/.github/packaging/debian/ workaround/gunicorn-21.2.0/debian
+          echo 'extend-diff-ignore = "^setup\.cfg$"' > workaround/gunicorn-21.2.0/debian/source/options
+          mv --verbose workaround/gunicorn-21.2.0/debian/setup.cfg workaround/gunicorn-21.2.0/
+          chmod --changes +x workaround/gunicorn-21.2.0/debian/control
+          ls -l workaround/gunicorn-21.2.0/
+      - name: prepare deb source dir (clean)
         run: |
-          # only source tarball:
-          # (cd source/ && python -m build --sdist)
-          # all:
-          (cd source/ && python -m build)
-          mkdir -p upload
-          cp --archive source/dist/*{.tar.gz,.whl} upload/
+          mkdir --verbose --parents upload
+          mkdir --verbose --parents debian
+          ( cd source/ && git archive --format=tar --prefix=gunicorn-21.2.0/ HEAD | gzip ) > debian/gunicorn_21.2.0.orig.tar.gz
+          ( cd debian/ && tar --extract --file gunicorn_21.2.0.orig.tar.gz gunicorn-21.2.0 )
+          test -s debian/gunicorn-21.2.0/pyproject.toml
+          rsync -vrlt source/.github/packaging/debian/ debian/gunicorn-21.2.0/debian
+          chmod --changes +x debian/gunicorn-21.2.0/debian/control
+          ls -l debian/gunicorn-21.2.0/
+      # ideally, build-dep step would be executed by dkpg scripts
+      - name: Install dpkg Dependencies
+        run: |
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get -y install dpkg-dev make python3-all quilt debhelper dh-python python3-setuptools pybuild-plugin-pyproject
+          # print versions
+          apt policy python3-all
+          apt policy dh-python
+          apt policy python3-setuptools
+          apt policy python3-distutils
+          apt policy python3-toml
+          apt policy python3-tomli
+          apt policy python3-setuptools-whl
+          apt policy python3-pep517
+          apt policy python3-build
+          apt policy pybuild-plugin-pyproject
+      - name: build deb (workaround)
+        run: |
+          test -s workaround/gunicorn-21.2.0/pyproject.toml
+          test -s workaround/gunicorn-21.2.0/setup.cfg
+          test -s workaround/gunicorn-21.2.0/debian/control
+          test -d workaround/gunicorn-21.2.0/tests
+          ( cd workaround/gunicorn-21.2.0/ && dpkg-buildpackage --unsigned-source --unsigned-changes )
+          cp --verbose --archive workaround/*.deb upload/workaround/
+      - name: build deb (clean)
+        continue-on-error: true
+        run: |
+          test -s debian/gunicorn-21.2.0/pyproject.toml
+          test -s debian/gunicorn-21.2.0/debian/control
+          test -d debian/gunicorn-21.2.0/tests
+          ( cd debian/gunicorn-21.2.0/ && dpkg-buildpackage --unsigned-source --unsigned-changes )
+          cp --verbose --archive debian/*.deb upload/
       - uses: actions/upload-artifact@v3
         with:
           path: upload

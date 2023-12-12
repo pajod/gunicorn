@@ -72,12 +72,13 @@ gunicorn = "gunicorn.app.wsgiapp:run"
 main = "gunicorn.app.pasterapp:serve"
 
 [tool.pytest.ini_options]
-# # can override these: python -m pytest --override-ini="addopts="
+# can override these: python -m pytest --override-ini="addopts="
 norecursedirs = ["examples", "lib", "local", "src"]
 testpaths = ["tests/"]
 addopts = "--assert=plain --cov=gunicorn --cov-report=xml"
 
 [tool.setuptools]
+# FIXME: zip-safe = long-overdue cleanup
 zip-safe = false
 include-package-data = true
 license-files = ["LICENSE"]
