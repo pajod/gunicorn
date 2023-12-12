@@ -4,14 +4,12 @@
 import ast
 import email.utils
 import errno
-import fcntl
 import html
 import importlib
 import inspect
 import io
 import logging
 import os
-import pwd
 import random
 import re
 import socket
@@ -132,35 +130,11 @@ def get_arity(f):
     return arity
 
 
-def get_username(uid):
-    """ get the username for a user id"""
-    return pwd.getpwuid(uid).pw_name
-
-
-def set_owner_process(uid, gid, initgroups=False):
-    """ set user and group of workers processes """
-
-    if gid:
-        if uid:
-            try:
-                username = get_username(uid)
-            except KeyError:
-                initgroups = False
-
-        # versions of python < 2.6.2 don't manage unsigned int for
-        # groups like on osx or fedora
-        gid = abs(gid) & 0x7FFFFFFF
-
-        if initgroups:
-            os.initgroups(username, gid)
-        elif gid != os.getgid():
-            os.setgid(gid)
-
-    if uid and uid != os.getuid():
-        os.setuid(uid)
-
-
 def chown(path, uid, gid):
+    # we use None for unchanged
+    # os.chown semantics are -1 for unchanged
+    uid = -1 if uid is None else uid
+    gid = -1 if gid is None else gid
     os.chown(path, uid, gid)
 
 
@@ -252,17 +226,6 @@ def parse_address(netloc, default_port='8000'):
         raise RuntimeError("%r is not a valid port number." % port)
 
     return host.lower(), port
-
-
-def close_on_exec(fd):
-    flags = fcntl.fcntl(fd, fcntl.F_GETFD)
-    flags |= fcntl.FD_CLOEXEC
-    fcntl.fcntl(fd, fcntl.F_SETFD, flags)
-
-
-def set_non_blocking(fd):
-    flags = fcntl.fcntl(fd, fcntl.F_GETFL) | os.O_NONBLOCK
-    fcntl.fcntl(fd, fcntl.F_SETFL, flags)
 
 
 def close(sock):

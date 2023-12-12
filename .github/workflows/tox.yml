@@ -1,5 +1,12 @@
 name: tox
-on: [push, pull_request]
+on:
+  push:
+    tags:
+     - '*'
+  pull_request:
+  # on pull, automaric
+  workflow_dispatch:
+  # allow manual trigger
 permissions:
   contents: read # to fetch code (actions/checkout)
 env:
@@ -12,8 +19,22 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest] # All OSes pass except Windows because tests need Unix-only fcntl, grp, pwd, etc.
+        # All OSes pass except Windows because tests need Unix-only fcntl, grp, pwd, etc.
+        os: [ubuntu-latest, macos-latest]
         python-version: [ "3.7", "3.8", "3.9", "3.10", "3.11", "3.12", "pypy-3.10" ]
+        unsupported: [false]
+        include:
+          - os: windows-latest
+            python-version: "3.12"
+            unsupported: true
+        exclude:
+          # skip some dupes on slower platform
+          - os: macos-latest
+            python-version: "3.8"
+          - os: macos-latest
+            python-version: "3.9"
+          - os: macos-latest
+            python-version: "3.11"
     steps:
       - uses: actions/checkout@v4
       - name: Using Python ${{ matrix.python-version }}
@@ -23,10 +44,30 @@ jobs:
           cache: pip
           cache-dependency-path: requirements_test.txt
           check-latest: true
-      - name: Install Dependencies
+      - name: Install test Dependencies
         run: |
           python -m pip install --upgrade pip
           python -m pip install tox
       - run: tox -e run-module
       - run: tox -e run-entrypoint
       - run: tox -e py
+        continue-on-error: ${{ matrix.unsupported }}
+      - name: Install dist Dependencies
+        run: |
+          python -m pip install build
+      - name: make dist
+        run: |
+          # only source tarball:
+          # (cd source/ && python -m build --sdist)
+          # all:
+          python -m build
+          # mac does not like the --parent --verbose long forms
+          mkdir -p upload
+          # windows does not like the {.a,.b} shorthands
+          # windows doe not do --archive --verbose on cp
+          cp dist/*.tar.gz upload/
+          cp dist/*.whl upload/
+      - uses: actions/upload-artifact@v3
+        with:
+          path: upload
+          name: dist

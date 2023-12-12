@@ -98,32 +98,50 @@ class TCP6Socket(TCPSocket):
         return "http://[%s]:%d" % (host, port)
 
 
-class UnixSocket(BaseSocket):
+if hasattr(socket, "AF_UNIX"):
 
-    FAMILY = socket.AF_UNIX
+    class UnixSocket(BaseSocket):
 
-    def __init__(self, addr, conf, log, fd=None):
-        if fd is None:
-            try:
-                st = os.stat(addr)
-            except OSError as e:
-                if e.args[0] != errno.ENOENT:
-                    raise
-            else:
-                if stat.S_ISSOCK(st.st_mode):
-                    os.remove(addr)
+        FAMILY = socket.AF_UNIX
+
+        def __init__(self, addr, conf, log, fd=None):
+            if fd is None:
+                try:
+                    st = os.stat(addr)
+                except OSError as e:
+                    if e.args[0] != errno.ENOENT:
+                        raise
                 else:
-                    raise ValueError("%r is not a socket" % addr)
-        super().__init__(addr, conf, log, fd=fd)
+                    if stat.S_ISSOCK(st.st_mode):
+                        os.remove(addr)
+                    else:
+                        raise ValueError("%r is not a socket" % addr)
+            super().__init__(addr, conf, log, fd=fd)
 
-    def __str__(self):
-        return "unix:%s" % self.cfg_addr
+        def __str__(self):
+            return "unix:%s" % self.cfg_addr
 
-    def bind(self, sock):
-        old_umask = os.umask(self.conf.umask)
-        sock.bind(self.cfg_addr)
-        util.chown(self.cfg_addr, self.conf.uid, self.conf.gid)
-        os.umask(old_umask)
+        def bind(self, sock):
+            old_umask = os.umask(self.conf.umask)
+            sock.bind(self.cfg_addr)
+            util.chown(self.cfg_addr, self.conf.uid, self.conf.gid)
+            os.umask(old_umask)
+
+else:
+
+    class UnixSocket(BaseSocket):
+
+        FAMILY = object()
+
+        def __init__(self, addr, conf, log, fd=None):
+            # pylint: disable=super-init-not-called
+            raise RuntimeError("Unix sockets unsupported.")
+
+        def __str__(self):
+            return "unix:%s" % self.cfg_addr
+
+        def bind(self, sock):
+            raise RuntimeError("Unix sockets unsupported.")
 
 
 def _sock_type(addr):

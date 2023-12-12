@@ -24,8 +24,9 @@ class WorkerTmp:
 
         # change the owner and group of the file if the worker will run as
         # a different user or group, so that the worker can modify the file
-        if cfg.uid != os.geteuid() or cfg.gid != os.getegid():
-            util.chown(name, cfg.uid, cfg.gid)
+        if cfg.uid is not None or cfg.gid is not None:
+            if cfg.uid != os.geteuid() or cfg.gid != os.getegid():
+                util.chown(name, cfg.uid, cfg.gid)
 
         # unlink the file so we don't leak temporary files
         try:

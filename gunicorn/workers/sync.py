@@ -14,7 +14,7 @@ import sys
 from gunicorn import http
 from gunicorn.http import wsgi
 from gunicorn import sock
-from gunicorn import util
+from gunicorn import port, util
 from gunicorn.workers import base
 
 
@@ -27,7 +27,7 @@ class SyncWorker(base.Worker):
     def accept(self, listener):
         client, addr = listener.accept()
         client.setblocking(1)
-        util.close_on_exec(client)
+        port.close_on_exec(client)
         self.handle(listener, client, addr)
 
     def wait(self, timeout):

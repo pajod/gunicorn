@@ -1,0 +1,3 @@
+from typing_extensions import Never
+
+def set_owner_process(uid: int | None, gid: int | None, initgroups: bool = ...) -> Never: ...

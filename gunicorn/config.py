@@ -6,17 +6,15 @@
 
 import argparse
 import copy
-import grp
 import inspect
 import os
-import pwd
 import re
 import shlex
 import ssl
 import sys
 import textwrap
 
-from gunicorn import __version__, util
+from gunicorn import __version__, port, util
 from gunicorn.errors import ConfigError
 from gunicorn.reloader import reloader_engines
 
@@ -442,21 +440,22 @@ def validate_callable(arity):
 
 def validate_user(val):
     if val is None:
-        return os.geteuid()
+        return None
+
     if isinstance(val, int):
         return val
     elif val.isdigit():
         return int(val)
     else:
         try:
-            return pwd.getpwnam(val).pw_uid
+            return port.resolve_uid(val)
         except KeyError:
             raise ConfigError("No such user: '%s'" % val)
 
 
 def validate_group(val):
     if val is None:
-        return os.getegid()
+        return None
 
     if isinstance(val, int):
         return val
@@ -464,7 +463,7 @@ def validate_group(val):
         return int(val)
     else:
         try:
-            return grp.getgrnam(val).gr_gid
+            return port.resolve_gid(val)
         except KeyError:
             raise ConfigError("No such group: '%s'" % val)
 
@@ -1140,8 +1139,7 @@ class User(Setting):
     cli = ["-u", "--user"]
     meta = "USER"
     validator = validate_user
-    default = os.geteuid()
-    default_doc = "``os.geteuid()``"
+    default = None
     desc = """\
         Switch worker processes to run as this user.
 
@@ -1157,8 +1155,7 @@ class Group(Setting):
     cli = ["-g", "--group"]
     meta = "GROUP"
     validator = validate_group
-    default = os.getegid()
-    default_doc = "``os.getegid()``"
+    default = None
     desc = """\
         Switch worker process to run as this group.
 

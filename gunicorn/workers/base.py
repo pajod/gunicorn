@@ -12,7 +12,7 @@ from datetime import datetime
 from random import randint
 from ssl import SSLError
 
-from gunicorn import util
+from gunicorn import port, util
 from gunicorn.http.errors import (
     ForbiddenProxyRequest, InvalidHeader,
     InvalidHeaderName, InvalidHTTPVersion,
@@ -27,9 +27,10 @@ from gunicorn.workers.workertmp import WorkerTmp
 
 class Worker:
 
-    SIGNALS = [getattr(signal, "SIG%s" % x) for x in (
-        "ABRT HUP QUIT INT TERM USR1 USR2 WINCH CHLD".split()
-    )]
+    # FIXME: nonsense. just testing some unrelated stuff that IS available in wondows
+    _want_signals_unix = set("ABRT HUP QUIT INT TERM USR1 USR2 WINCH CHLD".split())
+    SIGNALS = [getattr(signal, "SIG%s" % x, None) for x in _want_signals_unix]
+    SIGNALS = [sig for sig in SIGNALS if sig is not None]
 
     PIPE = []
 
@@ -93,22 +94,19 @@ class Worker:
             for k, v in self.cfg.env.items():
                 os.environ[k] = v
 
-        util.set_owner_process(self.cfg.uid, self.cfg.gid,
+        port.set_owner_process(self.cfg.uid, self.cfg.gid,
                                initgroups=self.cfg.initgroups)
 
         # Reseed the random number generator
         util.seed()
 
         # For waking ourselves up
-        self.PIPE = os.pipe()
-        for p in self.PIPE:
-            util.set_non_blocking(p)
-            util.close_on_exec(p)
+        self.PIPE = port.pipe2()
 
         # Prevent fd inheritance
         for s in self.sockets:
-            util.close_on_exec(s)
-        util.close_on_exec(self.tmp.fileno())
+            port.close_on_exec(s)
+        port.close_on_exec(self.tmp.fileno())
 
         self.wait_fds = self.sockets + [self.PIPE[0]]
 

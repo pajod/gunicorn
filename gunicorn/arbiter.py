@@ -12,7 +12,7 @@ import traceback
 
 from gunicorn.errors import HaltServer, AppImportError
 from gunicorn.pidfile import Pidfile
-from gunicorn import sock, systemd, util
+from gunicorn import port, sock, systemd, util
 
 from gunicorn import __version__, SERVER_SOFTWARE
 
@@ -40,12 +40,17 @@ class Arbiter:
 
     # I love dynamic languages
     SIG_QUEUE = []
-    SIGNALS = [getattr(_signal, "SIG%s" % x)
-               for x in "HUP QUIT INT TERM TTIN TTOU USR1 USR2 WINCH".split()]
+    _want_signals_unix = set("HUP QUIT INT TERM TTIN TTOU USR1 USR2 WINCH".split())
     SIG_NAMES = dict(
-        (getattr(_signal, name), name[3:].lower()) for name in dir(_signal)
+        (getattr(_signal, name), name[3:]) for name in dir(_signal)
         if name[:3] == "SIG" and name[3] != "_"
     )
+    # FIXME: nonsense. just testing some unrelated stuff that IS available in wondows
+    SIGNALS = {getattr(_signal, "SIG%s" % x, None) for x in _want_signals_unix}
+    SIGNALS = [sig for sig in SIGNALS if sig is not None]
+
+    # FIXME: nonsense. just testing some unrelated stuff that IS available in wondows
+    SIGKILL = getattr(_signal, "SIGKILL", _signal.SIGTERM)
 
     def __init__(self, app):
         os.environ["SERVER_SOFTWARE"] = SERVER_SOFTWARE
@@ -175,10 +180,7 @@ class Arbiter:
             os.close(p)
 
         # initialize the pipe
-        self.PIPE = pair = os.pipe()
-        for p in pair:
-            util.set_non_blocking(p)
-            util.close_on_exec(p)
+        self.PIPE = port.pipe2()
 
         self.log.close_on_exec()
 
@@ -394,7 +396,7 @@ class Arbiter:
         while self.WORKERS and time.time() < limit:
             time.sleep(0.1)
 
-        self.kill_workers(_signal.SIGKILL)
+        self.kill_workers(self.SIGKILL)
 
     def reexec(self):
         """\
@@ -504,7 +506,7 @@ class Arbiter:
                 worker.aborted = True
                 self.kill_worker(pid, _signal.SIGABRT)
             else:
-                self.kill_worker(pid, _signal.SIGKILL)
+                self.kill_worker(pid, self.SIGKILL)
 
     def reap_workers(self):
         """\
@@ -548,7 +550,7 @@ class Arbiter:
                             wpid, sig_name)
 
                         # Additional hint for SIGKILL
-                        if status == _signal.SIGKILL:
+                        if status == self.SIGKILL:
                             msg += " Perhaps out of memory?"
                         self.log.error(msg)
 

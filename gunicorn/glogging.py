@@ -16,7 +16,7 @@ import sys
 import threading
 import traceback
 
-from gunicorn import util
+from gunicorn import port, util
 
 
 # syslog facility codes
@@ -397,7 +397,7 @@ class Logger:
                     handler.acquire()
                     try:
                         if handler.stream:
-                            util.close_on_exec(handler.stream.fileno())
+                            port.close_on_exec(handler.stream.fileno())
                     finally:
                         handler.release()
 
