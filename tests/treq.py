@@ -14,7 +14,18 @@ from gunicorn.http.parser import RequestParser
 from gunicorn.util import split_request_uri
 
 dirname = os.path.dirname(__file__)
-random.seed()
+
+# Choices:
+# a) stdlib secrets module
+#      will help expose more bad tests
+#      may flip-flip between same test working and failing
+# b) stdlib random (library name is a misnomer) with fixed seed
+#      will produce repeatably results
+#      may miss bad tests aligning with some properties of the generator
+# c) stdlib random with arbitrary seed
+#      only the downsides of a+b
+#      nonsensical
+random.seed(a=0, version=2)
 
 
 def uri(data):

@@ -7,7 +7,7 @@ import os
 
 import pytest
 
-import treq
+from . import treq
 
 dirname = os.path.dirname(__file__)
 reqdir = os.path.join(dirname, "requests", "valid")

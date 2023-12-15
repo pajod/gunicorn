@@ -1,5 +1,8 @@
 gevent
 eventlet
 coverage
+# pytest 8.0 intends to drop Python 3.7
+# pytest 7.2.0 starts using Python 3.11 stdlib tomllib
 pytest>=7.2.0
-pytest-cov
+# pytest 6.0 supports modern importlib, so we do not need pytest-cov to fixup sys.path
+# pytest-cov

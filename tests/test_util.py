@@ -1,7 +1,8 @@
 #
 # This file is part of gunicorn released under the MIT license.
 # See the NOTICE for more information.
-import os
+
+from pathlib import Path
 
 import pytest
 
@@ -70,14 +71,16 @@ def test_warn(capsys):
         "support:create_app(count=3)",
     ],
 )
-def test_import_app_good(value):
+def test_import_app_good(monkeypatch, value):
+    monkeypatch.syspath_prepend(Path(__file__).parent / "importable")
+
     assert util.import_app(value)
 
 
 @pytest.mark.parametrize(
     ("value", "exc_type", "msg"),
     [
-        ("a:app", ImportError, "No module"),
+        ("nonexisting:app", ImportError, "No module"),
         ("support:create_app(", AppImportError, "Failed to parse"),
         ("support:create.app()", AppImportError, "Function reference"),
         ("support:create_app(Gunicorn)", AppImportError, "literal values"),
@@ -89,7 +92,9 @@ def test_import_app_good(value):
         ("support:HOST", AppImportError, "callable"),
     ],
 )
-def test_import_app_bad(value, exc_type, msg):
+def test_import_app_bad(monkeypatch, value, exc_type, msg):
+    monkeypatch.syspath_prepend(Path(__file__).parent / "importable")
+
     with pytest.raises(exc_type) as exc_info:
         util.import_app(value)
 
@@ -97,7 +102,7 @@ def test_import_app_bad(value, exc_type, msg):
 
 
 def test_import_app_py_ext(monkeypatch):
-    monkeypatch.chdir(os.path.dirname(__file__))
+    monkeypatch.chdir(Path(__file__).parent / "importable")
 
     with pytest.raises(ImportError) as exc_info:
         util.import_app("support.py")

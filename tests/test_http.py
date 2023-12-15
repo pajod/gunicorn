@@ -1,5 +1,5 @@
 import io
-import t
+from . import t
 import pytest
 from unittest import mock
 

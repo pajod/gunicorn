@@ -5,6 +5,7 @@
 import os
 import re
 import sys
+from pathlib import Path
 
 import pytest
 
@@ -16,20 +17,20 @@ from gunicorn.workers.sync import SyncWorker
 from gunicorn import glogging
 from gunicorn.instrument import statsd
 
-dirname = os.path.dirname(__file__)
+tests_dir = Path(__file__).parent
+examples_dir = tests_dir / ".." / "examples"
 def cfg_module():
     return 'config.test_cfg'
 def alt_cfg_module():
     return 'config.test_cfg_alt'
 def cfg_file():
-    return os.path.join(dirname, "config", "test_cfg.py")
+    return tests_dir / "importable" / "config" / "test_cfg.py"
 def alt_cfg_file():
-    return os.path.join(dirname, "config", "test_cfg_alt.py")
+    return tests_dir / "importable" / "config" / "test_cfg_alt.py"
 def cfg_file_with_wsgi_app():
-    return os.path.join(dirname, "config", "test_cfg_with_wsgi_app.py")
-def paster_ini():
-    return os.path.join(dirname, "..", "examples", "frameworks", "pylonstest", "nose.ini")
-
+    return tests_dir / "importable" / "config" / "test_cfg_with_wsgi_app.py"
+def paster_ni():
+    return examples_dir / "frameworks" / "pylonstest" / "nose.ini"
 
 class AltArgs:
     def __init__(self, args=None):
@@ -37,6 +38,7 @@ class AltArgs:
         self.orig = sys.argv
 
     def __enter__(self):
+        assert all(isinstance(arg, str) for arg in self.args)
         sys.argv = self.args
 
     def __exit__(self, exc_type, exc_inst, traceback):
@@ -226,7 +228,7 @@ def test_app_config():
 
 
 def test_load_config():
-    with AltArgs(["prog_name", "-c", cfg_file()]):
+    with AltArgs(["prog_name", "-c", "%s" % cfg_file()]):
         app = NoConfigApp()
     assert app.cfg.bind == ["unix:/tmp/bar/baz"]
     assert app.cfg.workers == 3
@@ -241,7 +243,9 @@ def test_load_config_explicit_file():
     assert app.cfg.proc_name == "fooey"
 
 
-def test_load_config_module():
+def test_load_config_module(monkeypatch):
+    monkeypatch.syspath_prepend(Path(__file__).parent / "importable")
+
     with AltArgs(["prog_name", "-c", "python:%s" % cfg_module()]):
         app = NoConfigApp()
     assert app.cfg.bind == ["unix:/tmp/bar/baz"]
@@ -250,13 +254,15 @@ def test_load_config_module():
 
 
 def test_cli_overrides_config():
-    with AltArgs(["prog_name", "-c", cfg_file(), "-b", "blarney"]):
+    with AltArgs(["prog_name", "-c", "%s" % cfg_file(), "-b", "blarney"]):
         app = NoConfigApp()
     assert app.cfg.bind == ["blarney"]
     assert app.cfg.proc_name == "fooey"
 
 
-def test_cli_overrides_config_module():
+def test_cli_overrides_config_module(monkeypatch):
+    monkeypatch.syspath_prepend(Path(__file__).parent / "importable")
+
     with AltArgs(["prog_name", "-c", "python:%s" % cfg_module(), "-b", "blarney"]):
         app = NoConfigApp()
     assert app.cfg.bind == ["blarney"]
@@ -369,15 +375,15 @@ def test_load_enviroment_variables_config(monkeypatch):
     assert app.cfg.workers == 4
 
 def test_config_file_environment_variable(monkeypatch):
-    monkeypatch.setenv("GUNICORN_CMD_ARGS", "--config=" + alt_cfg_file())
+    monkeypatch.setenv("GUNICORN_CMD_ARGS", "--config=%s" % alt_cfg_file())
     with AltArgs():
         app = NoConfigApp()
     assert app.cfg.proc_name == "not-fooey"
-    assert app.cfg.config == alt_cfg_file()
-    with AltArgs(["prog_name", "--config", cfg_file()]):
+    assert app.cfg.config == "%s" % alt_cfg_file()
+    with AltArgs(["prog_name", "--config", "%s" % cfg_file()]):
         app = NoConfigApp()
     assert app.cfg.proc_name == "fooey"
-    assert app.cfg.config == cfg_file()
+    assert app.cfg.config == "%s" % cfg_file()
 
 def test_invalid_enviroment_variables_config(monkeypatch, capsys):
     monkeypatch.setenv("GUNICORN_CMD_ARGS", "--foo=bar")
@@ -390,16 +396,16 @@ def test_invalid_enviroment_variables_config(monkeypatch, capsys):
 
 def test_cli_overrides_enviroment_variables_module(monkeypatch):
     monkeypatch.setenv("GUNICORN_CMD_ARGS", "--workers=4")
-    with AltArgs(["prog_name", "-c", cfg_file(), "--workers", "3"]):
+    with AltArgs(["prog_name", "-c", "%s" % cfg_file(), "--workers", "3"]):
         app = NoConfigApp()
     assert app.cfg.workers == 3
 
 
 @pytest.mark.parametrize("options, expected", [
     (["app:app"], 'app:app'),
-    (["-c", cfg_file(), "app:app"], 'app:app'),
-    (["-c", cfg_file_with_wsgi_app(), "app:app"], 'app:app'),
-    (["-c", cfg_file_with_wsgi_app()], 'app1:app1'),
+    (["-c", "%s" % cfg_file(), "app:app"], 'app:app'),
+    (["-c", "%s" % cfg_file_with_wsgi_app(), "app:app"], 'app:app'),
+    (["-c", "%s" % cfg_file_with_wsgi_app()], 'app1:app1'),
 ])
 def test_wsgi_app_config(options, expected):
     cmdline = ["prog_name"]
@@ -411,7 +417,7 @@ def test_wsgi_app_config(options, expected):
 
 @pytest.mark.parametrize("options", [
     ([]),
-    (["-c", cfg_file()]),
+    (["-c", "%s" % cfg_file()]),
 ])
 def test_non_wsgi_app(options, capsys):
     cmdline = ["prog_name"]
