@@ -14,7 +14,7 @@ details.
 
 ### CI
 
-[![CI:buildpackage](https://github.com/pajod/gunicorn/actions/workflows/ubuntu.yml/badge.svg)](https://github.com/pajod/gunicorn/actions/workflows/ubuntu.yml)
+[![CI:buildpackage](https://github.com/pajod/gunicorn/actions/workflows/buildpackage.yml/badge.svg)](https://github.com/pajod/gunicorn/actions/workflows/buildpackage.yml)
 [![CI:CodeQL](https://github.com/pajod/gunicorn/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/pajod/gunicorn/actions/workflows/github-code-scanning/codeql)
 [![CI:lint](https://github.com/pajod/gunicorn/actions/workflows/lint.yml/badge.svg)](https://github.com/pajod/gunicorn/actions/workflows/lint.yml)
 [![CI:tox](https://github.com/pajod/gunicorn/actions/workflows/tox.yml/badge.svg)](https://github.com/pajod/gunicorn/actions/workflows/tox.yml)
