@@ -42,7 +42,7 @@ class GeventWorker(AsyncWorker):
         sockets = []
         for s in self.sockets:
             sockets.append(socket.socket(s.FAMILY, socket.SOCK_STREAM,
-                                         fileno=s.sock.fileno()))
+                                         fileno=s.fileno()))
         self.sockets = sockets
 
     def notify(self):
