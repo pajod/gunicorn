@@ -9,6 +9,7 @@ import sys
 import time
 import traceback
 import queue
+import socket
 
 from gunicorn.errors import HaltServer, AppImportError
 from gunicorn.pidfile import Pidfile
@@ -177,6 +178,10 @@ class Arbiter:
     def signal(self, sig, frame):
         """ Note: Signal handler! No logging allowed. """
         self.SIG_QUEUE.put(sig)
+
+        # Some UNIXes require SIGCHLD to be reinstalled, see python signal docs
+        if sig == signal.SIGCHLD:
+            signal.signal(sig, self.signal)
 
     def run(self):
         "Main master loop."
