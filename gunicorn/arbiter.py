@@ -1,6 +1,7 @@
 #
 # This file is part of gunicorn released under the MIT license.
 # See the NOTICE for more information.
+import queue
 import errno
 import os
 import random
@@ -8,8 +9,6 @@ import signal
 import sys
 import time
 import traceback
-import queue
-import socket
 
 from gunicorn.errors import HaltServer, AppImportError
 from gunicorn.pidfile import Pidfile
@@ -43,8 +42,6 @@ class Arbiter:
     # pylint: disable=used-before-assignment
     SIGNALS = [getattr(signal.Signals, "SIG%s" % x)
                for x in "CHLD HUP QUIT INT TERM TTIN TTOU USR1 USR2 WINCH".split()]
-    # pylint: disable=used-before-assignment
-    SIG_NAMES = dict((sig, sig.name[3:].lower()) for sig in SIGNALS)
 
     def __init__(self, app):
         os.environ["SERVER_SOFTWARE"] = SERVER_SOFTWARE
@@ -73,6 +70,11 @@ class Arbiter:
             "cwd": cwd,
             0: sys.executable
         }
+
+        self.SIG_HANDLERS = dict(
+            (sig, getattr(self, "handle_%s" % sig.name[3:].lower()))
+            for sig in self.SIGNALS
+        )
 
     def _get_num_workers(self):
         return self._num_workers
@@ -196,18 +198,11 @@ class Arbiter:
 
                 try:
                     sig = self.SIG_QUEUE.get(timeout=1)
-                except queue.Empty:
-                    sig = None
-
-                if sig:
-                    signame = self.SIG_NAMES.get(sig)
-                    handler = getattr(self, "handle_%s" % signame, None)
-                    if not handler:
-                        self.log.error("Unhandled signal: %s", signame)
-                        continue
                     if sig != signal.SIGCHLD:
-                        self.log.info("Handling signal: %s", signame)
-                    handler()
+                        self.log.info("Handling signal: %s", signal.Signals(sig).name)
+                    self.SIG_HANDLERS[sig]()
+                except queue.Empty:
+                    pass
 
                 self.murder_workers()
                 self.manage_workers()
