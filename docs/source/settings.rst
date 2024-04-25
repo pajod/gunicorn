@@ -1483,16 +1483,12 @@ Use with care and only if necessary. May be removed in a future version.
 
 **Default:** ``'SCRIPT_NAME'``
 
-A list containing headers and values that the front-end proxy
+A list containing upper-case header field names that the front-end proxy
 sets, to be used in WSGI environment.
 
-If other headers listed in this list are not present in the request, they will be ignored.
+If headers named in this list are not present in the request, they will be ignored.
 
 This option can be used to transfer SCRIPT_NAME and REMOTE_USER.
-
-The list should map upper-case header names to exact string
-values. The value comparisons are case-sensitive, unlike the header
-names, so make sure they're exactly what your front-end proxy sends.
 
 It is important that your front-end proxy configuration ensures that
 the headers defined here can not be passed directly from the client.
