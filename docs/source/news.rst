@@ -2,6 +2,16 @@
 Changelog
 =========
 
+22.0.1 - 2TBDTBDTBD
+===================
+
+- the SCRIPT_NAME header when received from allowed forwarders is no longer restricted for containing an underscore
+
+*** NOTE ***
+
+- This mitigates a regression that appeared first in the 22.0.0 release
+- Review your ``forwarded-allow-ips`` setting if you are still not seeing the SCRIPT_NAME transmitted
+
 22.0.0 - 2024-04-17
 ===================
 
