@@ -1474,6 +1474,29 @@ Use with care and only if necessary. May be removed in a future version.
 
 .. versionadded:: 22.0.0
 
+.. _forwarder-headers:
+
+``forwarder_headers``
+~~~~~~~~~~~~~~~~~~~~~
+
+**Command line:** ``--forwarder-headers``
+
+**Default:** ``'SCRIPT_NAME'``
+
+A list containing headers and values that the front-end proxy
+sets, to be used in WSGI environment.
+
+If other headers listed in this list are not present in the request, they will be ignored.
+
+This option can be used to transfer SCRIPT_NAME and REMOTE_USER.
+
+The list should map upper-case header names to exact string
+values. The value comparisons are case-sensitive, unlike the header
+names, so make sure they're exactly what your front-end proxy sends.
+
+It is important that your front-end proxy configuration ensures that
+the headers defined here can not be passed directly from the client.
+
 .. _header-map:
 
 ``header_map``
@@ -1491,11 +1514,12 @@ the same environment variable will dangerously confuse applications as to which 
 
 The safe default ``drop`` is to silently drop headers that cannot be unambiguously mapped.
 The value ``refuse`` will return an error if a request contains *any* such header.
-The value ``dangerous`` matches the previous, not advisabble, behaviour of mapping different
+The value ``dangerous`` matches the previous, not advisable, behaviour of mapping different
 header field names into the same environ name.
 
-The (at this time, not configurable) header `SCRIPT_NAME` is permitted
- without consulting this setting, if it is received from an allowed forwarder.
+If the source IP is permitted by ``forwarded-allow-ips``, *and* the header name is
+present in ``forwarder-headers``, the header is mapped into environment regardless of
+the state of this setting.
 
 Use with care and only if necessary and after considering if your problem could
 instead be solved by specifically renaming or rewriting only the intended headers
