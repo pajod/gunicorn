@@ -1010,9 +1010,9 @@ class Reload(Setting):
            In order to use the inotify reloader, you must have the ``inotify``
            package installed.
         .. warning::
-           Enabling this will change what happens on failure to load the
-           the application: While the reloader is active, any and all clients
-           that can make requests can see the full exception and traceback!
+           By default, enabling this will modify the handling of application errors
+           such that sensitive information is shared in response to any request;
+           see :ref:`if-no-app` for details.
         '''
 
 
@@ -1045,10 +1045,13 @@ class ReloadExtraFiles(Setting):
     validator = validate_list_of_existing_files
     default = []
     desc = """\
-        Extends :ref:`reload` option to also watch and reload on additional files
-        (e.g., templates, configurations, specifications, etc.).
+        Reload when these files appear modified. Can be used either on its own or to extend
+         the :ref:`reload` option to also watch and reload on additional files
+         (e.g., templates, configurations, specifications, etc.).
 
         .. versionadded:: 19.8
+        .. versionchanged:: unmaintained0
+           Now effective also when :ref:`reload` is not enabled.
         """
 
 
@@ -3211,4 +3214,47 @@ class ControlSocketDisable(Setting):
         connect to this Gunicorn instance.
 
         .. versionadded:: 25.1.0
+        """
+
+def validate_if_no_app(val):
+    # FIXME: refactor all of this subclassing stdlib argparse
+
+    if val is None:
+        return
+
+    if not isinstance(val, str):
+        raise TypeError("Invalid type for casting: %s" % val)
+    if val.lower().strip() == "world-readable-traceback":
+        return "world-readable-traceback"
+    elif val.lower().strip() == "refuse":
+        return "refuse"
+    elif val.lower().strip() == "error":
+        return "error"
+    elif val.lower().strip() == "world-readable-traceback-with-reload":
+        return "world-readable-traceback-with-reload"
+    else:
+        raise ValueError("Invalid header map behaviour: %s" % val)
+
+
+class OnFatal(Setting):
+    name = "if_no_app"
+    section = "Server Mechanics"
+    cli = ["--if-no-app"]
+    validator = validate_if_no_app
+    default = "world-readable-traceback-with-reload"
+    desc = """\
+        Configure what to do if loading the application fails
+
+        If set to ``world-readable-traceback``, send the traceback to the client.
+        If set to ``brief``, repond with a simple error status.
+        If set to ``refuse``, stop processing requests.
+        The default behavior is ``world-readable-traceback-with-reload``, which is equivalent
+        to ``world-readable-traceback`` when :ref:`reload` is enabled, or ``refuse`` otherwise.
+
+        The behaviour of ``world-readable-traceback`` (or, the default in conjunction with
+        ``reload``) risks exposing sensitive code and data and is not suitable
+        for production use.
+
+        .. versionadded:: unmaintained0
+           The new *default* matches the previous behavior.
         """

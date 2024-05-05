@@ -114,9 +114,9 @@ because it consumes less system resources.
     package installed.
 
 !!! warning
-    Enabling this will change what happens on failure to load the
-    the application: While the reloader is active, any and all clients
-    that can make requests can see the full exception and traceback!
+    By default, enabling this will modify the handling of application errors
+    such that sensitive information is shared in response to any request;
+    see if-no-app for details.
 
 ### `reload_engine`
 
@@ -140,10 +140,14 @@ Valid engines are:
 
 **Default:** `[]`
 
-Extends [reload](#reload) option to also watch and reload on additional files
-(e.g., templates, configurations, specifications, etc.).
+Reload when these files appear modified. Can be used either on its own or to extend
+ the [reload](#reload) option to also watch and reload on additional files
+ (e.g., templates, configurations, specifications, etc.).
 
 !!! info "Added in 19.8"
+
+!!! info "Changed in unmaintained0"
+    Now effective also when [reload](#reload) is not enabled.
 
 ### `spew`
 
@@ -1704,6 +1708,27 @@ For example, if your application is mounted at ``/api``, set
 this to ``/api``.
 
 !!! info "Added in 24.0.0"
+
+### `if_no_app`
+
+**Command line:** `--if-no-app`
+
+**Default:** `'world-readable-traceback-with-reload'`
+
+Configure what to do if loading the application fails
+
+If set to ``world-readable-traceback``, send the traceback to the client.
+If set to ``brief``, repond with a simple error status.
+If set to ``refuse``, stop processing requests.
+The default behavior is ``world-readable-traceback-with-reload``, which is equivalent
+to ``world-readable-traceback`` when [reload](#reload) is enabled, or ``refuse`` otherwise.
+
+The behaviour of ``world-readable-traceback`` (or, the default in conjunction with
+``reload``) risks exposing sensitive code and data and is not suitable
+for production use.
+
+!!! info "Added in unmaintained0"
+    The new *default* matches the previous behavior.
 
 ## Server Socket
 

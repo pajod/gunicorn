@@ -33,18 +33,12 @@ details.
  * no `--casefold-http-method` / `--strip-header-spaces` / `--permit-obsolete-folding`
  * reduced test & docs dependencies
  * no implicit --config=$PWD/gunicorn.conf.py execution
-
- * [PR #3214: document server hooks](https://github.com/benoitc/gunicorn/pull/3214)
- * [PR #3127: refactor socket wrappers](https://github.com/benoitc/gunicorn/pull/3127)
- * [PR #3124: multiple --reload-extra-file](https://github.com/benoitc/gunicorn/pull/3124)
- * [PR #3134: CI test older dependencies](https://github.com/benoitc/gunicorn/pull/3134)
- * [PR #3191: correct log severity](https://github.com/benoitc/gunicorn/pull/3191)
- * [PR #3197: fix percent-formatting](https://github.com/benoitc/gunicorn/pull/3197)
- * [PR #3201: add type stubs](https://github.com/benoitc/gunicorn/pull/3201)
- * [PR #3210: remove fcntl](https://github.com/benoitc/gunicorn/pull/3210)
- * [PR #3211: CI for 3.13](https://github.com/benoitc/gunicorn/pull/3211)
- * unsubmitted: Updated django example for Django 4.2
- * unsubmitted: New CI job to verify docs are up to date
+ * added type stubs
+ * regression test for basic nginx setup
+ * less permissive HTTP parser validation
+ * no paste deploy support
+ * permit `--reload-extra-files` without `--reload`
+ * new `--on-fatal=`
 
 </tbody>
 </tr></tbody></table>

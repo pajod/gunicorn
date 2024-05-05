@@ -121,7 +121,7 @@ class Worker:
         self.init_signals()
 
         # start the reloader
-        if self.cfg.reload:
+        if self.cfg.reload or self.cfg.reload_extra_files:
             def changed(fname):
                 self.log.info("Worker reloading: %s modified", fname)
                 self.alive = False
@@ -133,6 +133,7 @@ class Worker:
             self.log.warning("Reloader is on. Use in development only!")
             reloader_cls = reloader_engines[self.cfg.reload_engine]
             self.reloader = reloader_cls(extra_files=self.cfg.reload_extra_files,
+                                         auto_detect=self.cfg.reload,
                                          callback=changed)
 
         self.load_wsgi()
@@ -149,7 +150,16 @@ class Worker:
         try:
             self.wsgi = self.app.wsgi()
         except SyntaxError as e:
-            if not self.cfg.reload:
+            if self.cfg.if_no_app == "world-readable-traceback":
+                pass
+            elif self.cfg.if_no_app == "brief":
+                self.log.exception(e)
+                self.wsgi = util.make_fail_app("Internal Server Error")
+                return
+            elif self.cfg.if_no_app == "world-readable-traceback-with-reload" and self.cfg.reload:
+                pass
+            else:  # self.cfg.if_no_app == "refuse"
+                # secure fallthrough
                 raise
 
             self.log.exception(e)
