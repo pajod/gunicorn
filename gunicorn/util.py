@@ -5,7 +5,6 @@
 import ast
 import email.utils
 import errno
-import fcntl
 import html
 import importlib
 import inspect
@@ -263,8 +262,10 @@ def close_on_exec(fd):
 
 
 def set_non_blocking(fd):
-    flags = fcntl.fcntl(fd, fcntl.F_GETFL) | os.O_NONBLOCK
-    fcntl.fcntl(fd, fcntl.F_SETFL, flags)
+    # available since Python 3.5, equivalent to either:
+    # ioctl(fd, FIONBIO)
+    # fcntl(fd, fcntl.F_SETFL, fcntl(fd, F_GETFL) | O_NONBLOCK)
+    os.set_blocking(fd, False)
 
 
 def close(sock):
