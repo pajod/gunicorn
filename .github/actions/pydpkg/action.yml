@@ -1,0 +1,72 @@
+inputs:
+  workaround:
+    default: ""
+    required: true
+  path:
+    default: "debian"
+    required: true
+
+branding:
+  icon: "rotate-cw"
+  color: "red"
+
+env:
+  # note that some tools care only for the name, not the value
+  FORCE_COLOR: 1
+
+  # reduce metadata. unlike elsewhere, build artifacts should differ by content only
+  SOURCE_DATE_EPOCH: 0
+
+runs:
+  using: "composite"
+  steps:
+   - name: prepare deb source dir (${{ inputs.path }})
+     # why the incorrect version? because this way we can skip rewrite debian/changelog for now
+     shell: bash
+     run: |
+       mkdir --verbose --parents upload/${{ inputs.path }}
+       mkdir --verbose --parents ${{ inputs.path }}
+       ( cd source/ && git archive --format=tar --prefix=gunicorn-21.2.0/ HEAD | gzip ) > ${{ inputs.path }}/gunicorn_21.2.0.orig.tar.gz
+       ( cd ${{ inputs.path }}/ && tar --extract --file gunicorn_21.2.0.orig.tar.gz gunicorn-21.2.0 )
+       test -s ${{ inputs.path }}/gunicorn-21.2.0/pyproject.toml
+       rsync -vrlt source/.github/packaging/debian/ ${{ inputs.path }}/gunicorn-21.2.0/debian
+       chmod --changes +x ${{ inputs.path }}/gunicorn-21.2.0/debian/control
+       ls -l ${{ inputs.path }}/gunicorn-21.2.0/
+   - name: prepare workarounds (${{ inputs.path }})
+     if: ${{ inputs.workaround != '' }}
+     shell: bash
+     run: |
+       echo 'extend-diff-ignore = "^setup\.cfg$"' >> ${{ inputs.path }}/gunicorn-21.2.0/debian/source/options
+       mv --verbose ${{ inputs.path }}/gunicorn-21.2.0/debian/setup.cfg ${{ inputs.path }}/gunicorn-21.2.0/
+    # ideally, build-dep step would be executed by dkpg scripts
+   - name: Install dpkg Dependencies
+     shell: bash
+     run: |
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get -y install dpkg-dev make python3-all quilt debhelper dh-python python3-setuptools pybuild-plugin-pyproject
+          # print versions
+          apt policy python3-all
+          apt policy dh-python
+          apt policy python3-setuptools
+          apt policy python3-distutils
+          apt policy python3-toml
+          apt policy python3-tomli
+          apt policy python3-setuptools-whl
+          apt policy python3-pep517
+          apt policy python3-build
+          apt policy pybuild-plugin-pyproject
+   - name: verify workarounds (${{ inputs.path }})
+     if: ${{ inputs.workaround != '' }}
+     shell: bash
+     run: |
+          test -s ${{ inputs.path }}/gunicorn-21.2.0/setup.cfg
+   - name: build deb (${{ inputs.path }})
+     shell: bash
+     run: |
+          test -s ${{ inputs.path }}/gunicorn-21.2.0/pyproject.toml
+          test -s ${{ inputs.path }}/gunicorn-21.2.0/debian/control
+          test -d ${{ inputs.path }}/gunicorn-21.2.0/tests
+          ( cd ${{ inputs.path }}/gunicorn-21.2.0/ && dpkg-buildpackage --unsigned-source --unsigned-changes )
+          # note that Ubuntu 22.04 does not allow zstd in dpkg tools
+          rsync --ignore-missing-args -trv ${{ inputs.path }}/*.{deb,tar.gz,tar.xz,tar.zstd,buildinfo,changes,dsc} upload/${{ inputs.path }}/
+
