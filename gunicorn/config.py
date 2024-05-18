@@ -7,11 +7,9 @@
 
 import argparse
 import copy
-import grp
 import inspect
 import ipaddress
 import os
-import pwd
 import re
 import shlex
 import ssl
@@ -455,21 +453,21 @@ def validate_callable(arity):
 
 def validate_user(val):
     if val is None:
-        return os.geteuid()
+        return None
     if isinstance(val, int):
         return val
     elif val.isdigit():
         return int(val)
     else:
         try:
-            return pwd.getpwnam(val).pw_uid
+            return util.resolve_uid(val)
         except KeyError:
             raise ConfigError("No such user: '%s'" % (val, ))
 
 
 def validate_group(val):
     if val is None:
-        return os.getegid()
+        return None
 
     if isinstance(val, int):
         return val
@@ -477,7 +475,7 @@ def validate_group(val):
         return int(val)
     else:
         try:
-            return grp.getgrnam(val).gr_gid
+            return util.resolve_gid(val)
         except KeyError:
             raise ConfigError("No such group: '%s'" % (val, ))
 
@@ -925,6 +923,10 @@ class Reload(Setting):
         .. note::
            In order to use the inotify reloader, you must have the ``inotify``
            package installed.
+        .. note::
+           By default, enabling this will modify the handling of application errors
+           from returning a general error to sharing sensitive information,
+           see :Ref:`on_fatal` for details.
         '''
 
 
@@ -957,8 +959,11 @@ class ReloadExtraFiles(Setting):
     validator = validate_list_of_existing_files
     default = []
     desc = """\
-        Extends :ref:`reload` option to also watch and reload on additional files
+        Reload when these files appear modified. Can be used either on its own or to extend
+         the :ref:`reload` option to also watch and reload on additional files
         (e.g., templates, configurations, specifications, etc.).
+
+        Behaviour changed in 22.1.0: No longer implicitly depends on :ref:`reload` enabled.
 
         .. versionadded:: 19.8
         """
@@ -1155,14 +1160,19 @@ class User(Setting):
     cli = ["-u", "--user"]
     meta = "USER"
     validator = validate_user
-    default = os.geteuid()
-    default_doc = "``os.geteuid()``"
+    default = None
     desc = """\
         Switch worker processes to run as this user.
 
         A valid user id (as an integer) or the name of a user that can be
         retrieved with a call to ``pwd.getpwnam(value)`` or ``None`` to not
         change the worker process user.
+
+        .. note::
+           Prior to version 22.1.0 leaving this option unspecified still
+           attempted to setuid to the current user.
+           After version 22.1.0 leaving this option unspecified will
+           not attempt changing user.
         """
 
 
@@ -1172,14 +1182,21 @@ class Group(Setting):
     cli = ["-g", "--group"]
     meta = "GROUP"
     validator = validate_group
-    default = os.getegid()
-    default_doc = "``os.getegid()``"
+    default = None
     desc = """\
         Switch worker process to run as this group.
 
         A valid group id (as an integer) or the name of a user that can be
         retrieved with a call to ``pwd.getgrnam(value)`` or ``None`` to not
         change the worker processes group.
+
+        .. note::
+           Prior to version 22.1.0 leaving this option unspecified still
+           attempted to setgid to the current group, setting only this option
+           would not modify the list of supplementary groups.
+           After version 22.1.0 leaving this option unspecified will
+           not attempt changing groups, setting this option will always
+           result in supplementary group list being reset.
         """
 
 
@@ -1756,9 +1773,10 @@ class OnStarting(Setting):
     validator = validate_callable(1)
     type = callable
 
+    @staticmethod
     def on_starting(server):
         pass
-    default = staticmethod(on_starting)
+    default = on_starting
     desc = """\
         Called just before the master process is initialized.
 
@@ -1772,9 +1790,10 @@ class OnReload(Setting):
     validator = validate_callable(1)
     type = callable
 
+    @staticmethod
     def on_reload(server):
         pass
-    default = staticmethod(on_reload)
+    default = on_reload
     desc = """\
         Called to recycle workers during a reload via SIGHUP.
 
@@ -1788,9 +1807,10 @@ class WhenReady(Setting):
     validator = validate_callable(1)
     type = callable
 
+    @staticmethod
     def when_ready(server):
         pass
-    default = staticmethod(when_ready)
+    default = when_ready
     desc = """\
         Called just after the server is started.
 
@@ -1804,9 +1824,10 @@ class Prefork(Setting):
     validator = validate_callable(2)
     type = callable
 
+    @staticmethod
     def pre_fork(server, worker):
         pass
-    default = staticmethod(pre_fork)
+    default = pre_fork
     desc = """\
         Called just before a worker is forked.
 
@@ -1821,9 +1842,10 @@ class Postfork(Setting):
     validator = validate_callable(2)
     type = callable
 
+    @staticmethod
     def post_fork(server, worker):
         pass
-    default = staticmethod(post_fork)
+    default = post_fork
     desc = """\
         Called just after a worker has been forked.
 
@@ -1838,10 +1860,11 @@ class PostWorkerInit(Setting):
     validator = validate_callable(1)
     type = callable
 
+    @staticmethod
     def post_worker_init(worker):
         pass
 
-    default = staticmethod(post_worker_init)
+    default = post_worker_init
     desc = """\
         Called just after a worker has initialized the application.
 
@@ -1856,10 +1879,11 @@ class WorkerInt(Setting):
     validator = validate_callable(1)
     type = callable
 
+    @staticmethod
     def worker_int(worker):
         pass
 
-    default = staticmethod(worker_int)
+    default = worker_int
     desc = """\
         Called just after a worker exited on SIGINT or SIGQUIT.
 
@@ -1874,10 +1898,11 @@ class WorkerAbort(Setting):
     validator = validate_callable(1)
     type = callable
 
+    @staticmethod
     def worker_abort(worker):
         pass
 
-    default = staticmethod(worker_abort)
+    default = worker_abort
     desc = """\
         Called when a worker received the SIGABRT signal.
 
@@ -1894,9 +1919,10 @@ class PreExec(Setting):
     validator = validate_callable(1)
     type = callable
 
+    @staticmethod
     def pre_exec(server):
         pass
-    default = staticmethod(pre_exec)
+    default = pre_exec
     desc = """\
         Called just before a new master process is forked.
 
@@ -1910,9 +1936,10 @@ class PreRequest(Setting):
     validator = validate_callable(2)
     type = callable
 
+    @staticmethod
     def pre_request(worker, req):
         worker.log.debug("%s %s", req.method, req.path)
-    default = staticmethod(pre_request)
+    default = pre_request
     desc = """\
         Called just before a worker processes the request.
 
@@ -1927,9 +1954,10 @@ class PostRequest(Setting):
     validator = validate_post_request
     type = callable
 
+    @staticmethod
     def post_request(worker, req, environ, resp):
         pass
-    default = staticmethod(post_request)
+    default = post_request
     desc = """\
         Called after a worker processes the request.
 
@@ -1944,9 +1972,10 @@ class ChildExit(Setting):
     validator = validate_callable(2)
     type = callable
 
+    @staticmethod
     def child_exit(server, worker):
         pass
-    default = staticmethod(child_exit)
+    default = child_exit
     desc = """\
         Called just after a worker has been exited, in the master process.
 
@@ -1963,9 +1992,10 @@ class WorkerExit(Setting):
     validator = validate_callable(2)
     type = callable
 
+    @staticmethod
     def worker_exit(server, worker):
         pass
-    default = staticmethod(worker_exit)
+    default = worker_exit
     desc = """\
         Called just after a worker has been exited, in the worker process.
 
@@ -1980,9 +2010,10 @@ class NumWorkersChanged(Setting):
     validator = validate_callable(3)
     type = callable
 
+    @staticmethod
     def nworkers_changed(server, new_value, old_value):
         pass
-    default = staticmethod(nworkers_changed)
+    default = nworkers_changed
     desc = """\
         Called just after *num_workers* has been changed.
 
@@ -1999,10 +2030,11 @@ class OnExit(Setting):
     section = "Server Hooks"
     validator = validate_callable(1)
 
+    @staticmethod
     def on_exit(server):
         pass
 
-    default = staticmethod(on_exit)
+    default = on_exit
     desc = """\
         Called just before exiting Gunicorn.
 
@@ -2016,10 +2048,11 @@ class NewSSLContext(Setting):
     validator = validate_callable(2)
     type = callable
 
+    @staticmethod
     def ssl_context(config, default_ssl_context_factory):
         return default_ssl_context_factory()
 
-    default = staticmethod(ssl_context)
+    default = ssl_context
     desc = """\
         Called when SSLContext is needed.
 
@@ -2420,4 +2453,46 @@ class TolerateDangerousFraming(Setting):
         Use with care and only if necessary. May be removed in a future version.
 
         .. versionadded:: 22.0.0
+        """
+
+
+def validate_fatal_behaviour(val):
+    # FIXME: refactor all of this subclassing stdlib argparse
+
+    if val is None:
+        return
+
+    if not isinstance(val, str):
+        raise TypeError("Invalid type for casting: %s" % val)
+    if val.lower().strip() == "world-readable":
+        return "world-readable"
+    elif val.lower().strip() == "refuse":
+        return "refuse"
+    elif val.lower().strip() == "quiet":
+        return "quiet"
+    elif val.lower().strip() == "guess":
+        return "guess"
+    else:
+        raise ValueError("Invalid header map behaviour: %s" % val)
+
+
+class OnFatal(Setting):
+    name = "on_fatal"
+    section = "Server Mechanics"
+    cli = ["--on-fatal"]
+    validator = validate_fatal_behaviour
+    default = "guess"
+    desc = """\
+        Configure what to do if loading the application fails
+
+        If set to ``world-readable``, always send the traceback to the client.
+
+        The default behaviour ``guess`` is to share the traceback with the world
+         if :ref:`reload` is in use. If set to ``refuse``, stop processing requests.
+        If set to ``quiet``, respond with error status but do not share internals.
+
+        The behaviour of ``world-readable`` (or, by extension ``guess``) risks exposing
+         sensitive data and is not recommended for production use.
+
+        .. versionadded:: 22.1.0
         """
