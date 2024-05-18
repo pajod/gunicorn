@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <form method="post" enctype='multipart/form-data'>
+        {% csrf_token %}
+        {{ form.as_div }}
+        <input type="submit" id="submit" value="submit">
+    </form>
+
+    <h2>Got</h2>
+    {% if subject %}
+        <p><strong>subject:</strong><br>{{ subject}}</p>
+        <p><strong>message:</strong><br>{{ message }}</p>
+        <p><strong>file name:</strong><br>{{ fname }}</p>
+        <p><strong>file size:</strong><br>{{ fsize }}</p>
+    {% endif %}
+{% endblock content %}

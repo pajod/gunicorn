@@ -2,6 +2,7 @@
 *.egg-info
 *.pyc
 *.so
+*.sqlite3
 .coverage
 .pytest_cache
 .tox
