@@ -1,0 +1,68 @@
+name: packaging
+# Goal: produce .deb files on Ubuntu >= 22.04 (jammy) or Debian >= 12 (bookworm/bullseye-backports)
+# https://wiki.debian.org/Packaging
+# https://www.debian.org/doc/debian-policy/
+# https://www.debian.org/doc/packaging-manuals/python-policy/
+
+# https://docs.github.com/articles/events-that-trigger-workflows
+on:
+  push:
+    tags:
+     - '*'
+  pull_request:
+    # self
+    paths:
+      - .github/workflows/packaging.yml
+      - .github/actions/pydpkg/*
+      - .github/packaging/debian/*
+      - pyproject.toml
+  workflow_dispatch:
+  # https://docs.github.com/articles/configuring-a-workflow#manually-running-a-workflow
+
+permissions:
+  contents: read  # to fetch code (actions/checkout)
+
+env:
+  # note that some tools care only for the name, not the value
+  FORCE_COLOR: 1
+
+  # reduce metadata. unlike elsewhere, build artifacts should differ by content only
+  SOURCE_DATE_EPOCH: 0
+
+jobs:
+  dpkg-buildpackage:
+    name: buildpackage-${{ matrix.python-version }}
+    # https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#jobsjob_idtimeout-minutes
+    timeout-minutes: 5
+    # https://docs.github.com/articles/virtual-environments-for-github-actions
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+      # https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#jobsjob_idstrategymatrix
+      matrix:
+        python-version: [ "os-py" ]
+    steps:
+      - uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
+        with:
+          path: source
+      - name: "Build dpkg package (with workaround)"
+        uses: ./source/.github/actions/pydpkg
+        with:
+          path: debian-workaround
+          workaround: "all"
+      - name: "Build dpkg package (default)"
+        uses: ./source/.github/actions/pydpkg
+        continue-on-error: true
+        with:
+          path: debian
+          workaround: ""
+      - uses: actions/upload-artifact@694cdabd8bdb0f10b2cea11669e1bf5453eed0a6 # v4.2.0
+        with:
+          path: |
+            upload/debian-workaround/*
+            upload/debian/*
+          name: deb
+          retention-days: 5
+          # deb and source tarball are already compressed
+          compression-level: 0
+          if-no-files-found: error
