@@ -245,7 +245,7 @@ class Server:
             time.sleep(1.0 / poll_per_second)
         # assert buf[abs(key - 1)] == ""
         assert wait_for_keyword in buf[key], (wait_for_keyword, *buf)
-        assert not expect, (additional_keyword, *buf)
+        assert not expect, (expect, *buf)
         return buf[key]
 
 

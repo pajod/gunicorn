@@ -158,7 +158,7 @@ omit = [
 
 [tool.pytest.ini_options]
 # can override these: python -m pytest --override-ini="addopts="
-faulthandler_timeout = 25
+faulthandler_timeout = 600
 norecursedirs = ["examples", "lib", "local", "src"]
 testpaths = ["tests/"]
 addopts = ["--strict-markers", "--assert=plain"]

@@ -24,7 +24,17 @@ details.
 
 ### Notable changes tested in this repository
 
- * [PR #3196](https://github.com/benoitc/gunicorn/pull/3196)
+ * [PR #3127: refactor socket wrappers](https://github.com/benoitc/gunicorn/pull/3127)
+ * [PR #3134: CI test older dependencies](https://github.com/benoitc/gunicorn/pull/3134)
+ * [PR #3192: fix 22.0 regression: `SCRIPT_NAME` forbidden](https://github.com/benoitc/gunicorn/pull/3192)
+ * [PR #3191: correct log severity](https://github.com/benoitc/gunicorn/pull/3191)
+ * [PR #3196: fix 22.0 regression: exception in error handling](https://github.com/benoitc/gunicorn/pull/3196)
+ * [PR #3197: fix percent-formatting](https://github.com/benoitc/gunicorn/pull/3197)
+ * [PR #3201: add type stubs](https://github.com/benoitc/gunicorn/pull/3201)
+ * [PR #3210: remove fcntl](https://github.com/benoitc/gunicorn/pull/3210)
+ * [PR #3211: CI for 3.13](https://github.com/benoitc/gunicorn/pull/3211)
+ * unsubmitted: Updated django example for Django 4.2
+ * unsubmitted: New CI job to verify docs are up to date
 
 </tbody>
 </tr></tbody></table>
