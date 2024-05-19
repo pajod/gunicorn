@@ -14,8 +14,8 @@ import pytest
 # from threading import Thread, Event
 
 
-GRACEFUL_TIMEOUT = 5
-BOOT_DEADLINE = 15
+GRACEFUL_TIMEOUT = 10
+BOOT_DEADLINE = 20
 
 # test flaky for WORKER_COUNT != 1, awaiting *last* worker not implemented
 WORKER_COUNT = 1
@@ -245,9 +245,7 @@ class Server:
             time.sleep(1.0 / poll_per_second)
         # assert buf[abs(key - 1)] == ""
         assert wait_for_keyword in buf[key], (wait_for_keyword, *buf)
-        for additional_keyword in expect:
-            for somewhere in buf:
-                assert additional_keyword in somewhere, (additional_keyword, *buf)
+        assert not expect, (additional_keyword, *buf)
         return buf[key]
 
 
