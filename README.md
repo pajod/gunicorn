@@ -28,3 +28,7 @@ details.
 
 </tbody>
 </tr></tbody></table>
+
+### Status Images
+
+![gunicorn upstream Stats by Repobeats](https://repobeats.axiom.co/api/embed/c1f1846401d9b4913dd9019aead4b1883e954739.svg "Repobeats analytics image")
