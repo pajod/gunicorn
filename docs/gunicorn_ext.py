@@ -46,13 +46,16 @@ def format_settings(app):
         settings.write(HEAD)
         settings.write(''.join(ret))
 
+def needline(line):
+    # do not document decorators: just an artifact how we define our defaults
+    return not line.lstrip(" ").startswith("@")
 
 def fmt_setting(s):
     if hasattr(s, "_default_doc"):
         val = s._default_doc
     elif callable(s.default):
         val = inspect.getsource(s.default)
-        val = "\n".join("    %s" % line for line in val.splitlines())
+        val = "\n".join("    %s" % line for line in val.splitlines() if needline(line))
         val = "\n\n.. code-block:: python\n\n" + val
     elif s.default == '':
         val = "``''``"

@@ -85,6 +85,10 @@ because it consumes less system resources.
 .. note::
    In order to use the inotify reloader, you must have the ``inotify``
    package installed.
+.. note::
+   By default, enabling this will modify the handling of application errors
+   from returning a general error to sharing sensitive information,
+   see :ref:`on-fatal` for details.
 
 .. _reload-engine:
 
@@ -114,8 +118,11 @@ Valid engines are:
 
 **Default:** ``[]``
 
-Extends :ref:`reload` option to also watch and reload on additional files
+Reload when these files appear modified. Can be used either on its own or to extend
+the :ref:`reload` option to also watch and reload on additional files
 (e.g., templates, configurations, specifications, etc.).
+
+Behaviour changed in 22.1.0: No longer implicitly depends on :ref:`reload` enabled.
 
 .. versionadded:: 19.8
 
@@ -210,7 +217,7 @@ H            protocol
 s            status
 B            response length
 b            response length or ``'-'`` (CLF format)
-f            referrer
+f            referer
 a            user agent
 T            request time in seconds
 M            request time in milliseconds
@@ -314,7 +321,7 @@ file format.
 
 The log config dictionary to use, using the standard Python
 logging module's dictionary configuration format. This option
-takes precedence over the :ref:`logconfig` and :ref:`logConfigJson` options,
+takes precedence over the :ref:`logconfig` and :ref:`logconfig-json` options,
 which uses the older file configuration format and JSON
 respectively.
 
@@ -347,7 +354,7 @@ Format: https://docs.python.org/3/library/logging.config.html#logging.config.jso
 
 **Command line:** ``--log-syslog-to SYSLOG_ADDR``
 
-**Default:** ``'unix:///var/run/syslog'``
+**Default:** ``'udp://localhost:514'``
 
 Address to send syslog messages.
 
@@ -527,7 +534,7 @@ SSL certificate file
 
 SSL version to use (see stdlib ssl module's).
 
-.. deprecated:: 20.2
+.. deprecated:: 21.0
    The option is deprecated and it is currently ignored. Use :ref:`ssl-context` instead.
 
 ============= ============
@@ -569,7 +576,7 @@ Whether client certificate is required (see stdlib ssl module's)
 ===========  ===========================
 --cert-reqs      Description
 ===========  ===========================
-`0`          no client verification
+`0`          no client veirifcation
 `1`          ssl.CERT_OPTIONAL
 `2`          ssl.CERT_REQUIRED
 ===========  ===========================
@@ -982,7 +989,7 @@ Following example shows a configuration file that sets the minimum TLS version t
         context.minimum_version = ssl.TLSVersion.TLSv1_3
         return context
 
-.. versionadded:: 20.2
+.. versionadded:: 21.0
 
 Server Mechanics
 ----------------
@@ -1128,13 +1135,19 @@ If not set, the default temporary directory will be used.
 
 **Command line:** ``-u USER`` or ``--user USER``
 
-**Default:** ``os.geteuid()``
+**Default:** ``None``
 
 Switch worker processes to run as this user.
 
 A valid user id (as an integer) or the name of a user that can be
 retrieved with a call to ``pwd.getpwnam(value)`` or ``None`` to not
 change the worker process user.
+
+.. note::
+   Prior to version 22.1.0 leaving this option unspecified still
+   attempted to setuid to the current user.
+   After version 22.1.0 leaving this option unspecified will
+   not attempt changing user.
 
 .. _group:
 
@@ -1143,13 +1156,21 @@ change the worker process user.
 
 **Command line:** ``-g GROUP`` or ``--group GROUP``
 
-**Default:** ``os.getegid()``
+**Default:** ``None``
 
 Switch worker process to run as this group.
 
 A valid group id (as an integer) or the name of a user that can be
 retrieved with a call to ``pwd.getgrnam(value)`` or ``None`` to not
 change the worker processes group.
+
+.. note::
+   Prior to version 22.1.0 leaving this option unspecified still
+   attempted to setgid to the current group, setting only this option
+   would not modify the list of supplementary groups.
+   After version 22.1.0 leaving this option unspecified will
+   not attempt changing groups, setting this option will always
+   result in supplementary group list being reset.
 
 .. _umask:
 
@@ -1232,17 +1253,18 @@ the headers defined here can not be passed directly from the client.
 
 **Command line:** ``--forwarded-allow-ips STRING``
 
-**Default:** ``'127.0.0.1'``
+**Default:** ``'127.0.0.1,::1'``
 
 Front-end's IPs from which allowed to handle set secure headers.
 (comma separate).
 
-Set to ``*`` to disable checking of Front-end IPs (useful for setups
+Set to ``*`` to disable checking of Front-end IPs. This is useful for setups
 where you don't know in advance the IP address of Front-end, but
-you still trust the environment).
+instead have ensured via other means that none other than your
+authorized Front-ends can access gunicorn.
 
 By default, the value of the ``FORWARDED_ALLOW_IPS`` environment
-variable. If it is not defined, the default is ``"127.0.0.1"``.
+variable. If it is not defined, the default is ``"127.0.0.1,::1"``.
 
 .. note::
 
@@ -1390,7 +1412,7 @@ Set a PasteDeploy global config variable in ``key=value`` form.
 
 The option can be specified multiple times.
 
-The variables are passed to the the PasteDeploy entrypoint. Example::
+The variables are passed to the PasteDeploy entrypoint. Example::
 
     $ gunicorn -b 127.0.0.1:8000 --paste development.ini --paste-global FOO=1 --paste-global BAR=2
 
@@ -1410,7 +1432,156 @@ Strip spaces present between the header name and the the ``:``.
 This is known to induce vulnerabilities and is not compliant with the HTTP/1.1 standard.
 See https://portswigger.net/research/http-desync-attacks-request-smuggling-reborn.
 
-Use with care and only if necessary.
+Use with care and only if necessary. May be removed in a future version.
+
+.. versionadded:: 20.0.1
+
+.. _permit-unconventional-http-method:
+
+``permit_unconventional_http_method``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Command line:** ``--permit-unconventional-http-method``
+
+**Default:** ``False``
+
+Permit HTTP methods not matching conventions, such as IANA registration guidelines
+
+This permits request methods of length less than 3 or more than 20,
+methods with lowercase characters or methods containing the # character.
+HTTP methods are case sensitive by definition, and merely uppercase by convention.
+
+This option is provided to diagnose backwards-incompatible changes.
+
+Use with care and only if necessary. May be removed in a future version.
+
+.. versionadded:: 22.0.0
+
+.. _permit-unconventional-http-version:
+
+``permit_unconventional_http_version``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Command line:** ``--permit-unconventional-http-version``
+
+**Default:** ``False``
+
+Permit HTTP version not matching conventions of 2023
+
+This disables the refusal of likely malformed request lines.
+It is unusual to specify HTTP 1 versions other than 1.0 and 1.1.
+
+This option is provided to diagnose backwards-incompatible changes.
+Use with care and only if necessary. May be removed in a future version.
+
+.. versionadded:: 22.0.0
+
+.. _casefold-http-method:
+
+``casefold_http_method``
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Command line:** ``--casefold-http-method``
+
+**Default:** ``False``
+
+Transform received HTTP methods to uppercase
+
+HTTP methods are case sensitive by definition, and merely uppercase by convention.
+
+This option is provided because previous versions of gunicorn defaulted to this behaviour.
+
+Use with care and only if necessary. May be removed in a future version.
+
+.. versionadded:: 22.0.0
+
+.. _forwarder-headers:
+
+``forwarder_headers``
+~~~~~~~~~~~~~~~~~~~~~
+
+**Command line:** ``--forwarder-headers``
+
+**Default:** ``'SCRIPT_NAME'``
+
+A list containing upper-case header field names that the front-end proxy
+sets, to be used in WSGI environment.
+
+If headers named in this list are not present in the request, they will be ignored.
+
+This option can be used to transfer SCRIPT_NAME and REMOTE_USER.
+
+It is important that your front-end proxy configuration ensures that
+the headers defined here can not be passed directly from the client.
+
+.. _header-map:
+
+``header_map``
+~~~~~~~~~~~~~~
+
+**Command line:** ``--header-map``
+
+**Default:** ``'drop'``
+
+Configure how header field names are mapped into environ
+
+Headers containing underscores are permitted by RFC9110,
+but gunicorn joining headers of different names into
+the same environment variable will dangerously confuse applications as to which is which.
+
+The safe default ``drop`` is to silently drop headers that cannot be unambiguously mapped.
+The value ``refuse`` will return an error if a request contains *any* such header.
+The value ``dangerous`` matches the previous, not advisable, behaviour of mapping different
+header field names into the same environ name.
+
+If the source IP is permitted by ``forwarded-allow-ips``, *and* the header name is
+present in ``forwarder-headers``, the header is mapped into environment regardless of
+the state of this setting.
+
+Use with care and only if necessary and after considering if your problem could
+instead be solved by specifically renaming or rewriting only the intended headers
+on a proxy in front of Gunicorn.
+
+.. versionadded:: 22.0.0
+
+.. _tolerate-dangerous-framing:
+
+``tolerate_dangerous_framing``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Command line:** ``--tolerate-dangerous-framing``
+
+**Default:** ``False``
+
+Process requests with both Transfer-Encoding and Content-Length
+
+This is known to induce vulnerabilities, but not strictly forbidden by RFC9112.
+
+Use with care and only if necessary. May be removed in a future version.
+
+.. versionadded:: 22.0.0
+
+.. _on-fatal:
+
+``on_fatal``
+~~~~~~~~~~~~
+
+**Command line:** ``--on-fatal``
+
+**Default:** ``'guess'``
+
+Configure what to do if loading the application fails
+
+If set to ``world-readable``, always send the traceback to the client.
+
+The default behaviour ``guess`` is to share the traceback with the world
+if :ref:`reload` is in use. If set to ``refuse``, stop processing requests.
+If set to ``quiet``, respond with error status but do not share internals.
+
+The behaviour of ``world-readable`` (or, by extension ``guess``) risks exposing
+ sensitive data and is not recommended for production use.
+
+.. versionadded:: 22.1.0
 
 Server Socket
 -------------

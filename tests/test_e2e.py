@@ -45,7 +45,7 @@ TEST_TOLERATES_BAD_RELOAD = [
 
 
 try:
-    from tornado import options
+    from tornado import options as _tornado_is_installed
 except ImportError:
     for T in (TEST_TOLERATES_BAD_BOOT, TEST_TOLERATES_BAD_RELOAD):
         T.remove("tornado")
@@ -151,12 +151,12 @@ class Server:
             "--access-logfile=-",
             "--disable-redirect-access-to-syslog",
             "--graceful-timeout=%d" % (GRACEFUL_TIMEOUT,),
-            "--on-fatal=%s" % ("world-readable" if public_traceback else "quiet",),
+            "--on-fatal={}".format("world-readable" if public_traceback else "quiet"),
             # "--reload",
             "--reload-extra=%s" % self.py_path,
             "--bind=%s" % server_bind,
             "--reuse-port",
-            "%s:%s" % (APP_BASENAME, APP_APPNAME),
+            f"{APP_BASENAME}:{APP_APPNAME}",
         ]
 
     def write_bad(self):
@@ -289,7 +289,7 @@ def test_process_request_after_fixing_syntax_error(worker_class):
                 timeout_sec=5,
                 expect={
                     "SyntaxError: invalid syntax",
-                    '%s.py", line ' % (APP_BASENAME,),
+                    f'{APP_BASENAME}.py", line ',
                 },
             )
 
@@ -318,7 +318,7 @@ def test_process_request_after_fixing_syntax_error(worker_class):
                 wait_for_keyword="reloading",
                 timeout_sec=5,
                 expect={
-                    "%s.py modified" % (APP_BASENAME,),
+                    f"{APP_BASENAME}.py modified",
                     "Booting worker",
                 },
             )
@@ -406,9 +406,9 @@ def test_process_shutdown_cleanly_after_inserting_syntax_error(worker_class):
                 timeout_sec=6,
                 expect={
                     "reloading",
-                    "%s.py modified" % (APP_BASENAME,),
+                    f"{APP_BASENAME}.py modified",
                     "SyntaxError: invalid syntax",
-                    '%s.py", line ' % (APP_BASENAME,),
+                    f'{APP_BASENAME}.py", line ',
                 },
             )
 

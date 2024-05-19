@@ -1,5 +1,4 @@
 import errno
-import fcntl
 import grp
 import os
 import pwd

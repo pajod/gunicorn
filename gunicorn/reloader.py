@@ -131,12 +131,15 @@ else:
         def __init__(self, extra_files=None, callback=None, auto_detect=False):
             raise ImportError('You must have the inotify module installed to '
                               'use the inotify reloader')
+
         # FIXME: decide whether these really are public API
         #  if yes - subclass from common protocol/parent class
         #  if no - mark as such with underscore
-        def add_extra_file(self, filename): raise NotImplementedError()
-        def get_dirs(self): raise NotImplementedError()
+        def add_extra_file(self, filename):
+            raise NotImplementedError()
 
+        def get_dirs(self):
+            raise NotImplementedError()
 
 
 preferred_reloader = InotifyReloader if has_inotify else Reloader

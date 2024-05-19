@@ -28,6 +28,8 @@ except (ModuleNotFoundError, ImportError):
 from gunicorn.errors import AppImportError
 from gunicorn.workers import SUPPORTED_WORKERS
 if sys.platform.startswith("win"):
+    # FIXME: should go into __ALL__
+    # pylint: disable=unused-import
     from gunicorn.windows import (
         close_on_exec,
         matching_effective_uid_gid,
@@ -37,6 +39,7 @@ if sys.platform.startswith("win"):
         set_owner_process,
     )
 else:
+    # pylint: disable=unused-import
     from gunicorn.unix import (
         close_on_exec,
         matching_effective_uid_gid,

@@ -15,6 +15,7 @@ class WSGIApplication(Application):
         self.app_uri = None
 
         if opts.paste:
+            # pylint: disable=cyclic-import
             from .pasterapp import has_logging_config
 
             config_uri = os.path.abspath(opts.paste)
@@ -48,6 +49,7 @@ class WSGIApplication(Application):
         return util.import_app(self.app_uri)
 
     def load_pasteapp(self):
+        # pylint: disable=cyclic-import
         from .pasterapp import get_wsgi_app
         return get_wsgi_app(self.app_uri, defaults=self.cfg.paste_global_conf)
 

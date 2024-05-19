@@ -242,7 +242,8 @@ class SettingMeta(type):
             return super_new(cls, name, bases, attrs)
 
         # creating new leaf class, register setting
-        all_attrs = reduce(operator.or_, [{k:v for (k,v) in vars(b).items() if not k.startswith("__")} for b in bases[::-1]] + [attrs, ])
+        parent_attrs = [{k: v for (k, v) in vars(b).items() if not k.startswith("__")} for b in bases[::-1]]
+        all_attrs = reduce(operator.or_, parent_attrs + [attrs, ])
         all_attrs["order"] = len(KNOWN_SETTINGS)
         all_attrs["validator"] = staticmethod(all_attrs["validator"])
 
@@ -346,6 +347,7 @@ def validate_bool(val):
     else:
         raise ValueError("Invalid boolean: %s" % val)
 
+
 def validate_dict(val):
     if not isinstance(val, dict):
         raise TypeError("Value is not a dictionary: %s " % (val, ))
@@ -361,6 +363,7 @@ def validate_pos_int(val):
     if val < 0:
         raise ValueError("Value must be positive: %s" % (val, ))
     return val
+
 
 def validate_ssl_version(val):
     if val != SSLVersion.default:
@@ -545,18 +548,22 @@ def get_default_config_file():
         return config_path
     return None
 
+
 class Setting(BaseSetting, metaclass=SettingMeta):
     pass
+
 
 class PosIntSetting(Setting):
     meta = "INT"
     validator = validate_pos_int
     type = int
 
+
 class BoolSetting(Setting):
     validator = validate_bool
     default = False
     action = 'store_true'
+
 
 class HookSetting(Setting):
     section = "Server Hooks"
@@ -905,7 +912,7 @@ class Reload(BoolSetting):
         .. note::
            By default, enabling this will modify the handling of application errors
            from returning a general error to sharing sensitive information,
-           see :Ref:`on_fatal` for details.
+           see :ref:`on-fatal` for details.
         '''
 
 
@@ -939,7 +946,7 @@ class ReloadExtraFiles(Setting):
     default = []
     desc = """\
         Reload when these files appear modified. Can be used either on its own or to extend
-         the :ref:`reload` option to also watch and reload on additional files
+        the :ref:`reload` option to also watch and reload on additional files
         (e.g., templates, configurations, specifications, etc.).
 
         Behaviour changed in 22.1.0: No longer implicitly depends on :ref:`reload` enabled.
@@ -1488,7 +1495,7 @@ class LogConfigDict(Setting):
     desc = """\
     The log config dictionary to use, using the standard Python
     logging module's dictionary configuration format. This option
-    takes precedence over the :ref:`logconfig` and :ref:`logConfigJson` options,
+    takes precedence over the :ref:`logconfig` and :ref:`logconfig-json` options,
     which uses the older file configuration format and JSON
     respectively.
 
@@ -2380,7 +2387,7 @@ class OnFatal(Setting):
         If set to ``world-readable``, always send the traceback to the client.
 
         The default behaviour ``guess`` is to share the traceback with the world
-         if :ref:`reload` is in use. If set to ``refuse``, stop processing requests.
+        if :ref:`reload` is in use. If set to ``refuse``, stop processing requests.
         If set to ``quiet``, respond with error status but do not share internals.
 
         The behaviour of ``world-readable`` (or, by extension ``guess``) risks exposing

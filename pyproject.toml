@@ -106,7 +106,7 @@ lint-types = [
 ]
 # linting on fixed versions, upgrading to matrix-incompat pylint release is OK
 lint-code = [
-    "pylint==2.17.4",
+    "pylint>=3.2",
     "pycodestyle",
 ]
 lint-docs = [
@@ -214,3 +214,77 @@ line_length = 88
 # changes stdlib category - all or auto (=current) can produce inconsistent results
 # py_version = "py310"
 profile = "black"
+
+[tool.pylint."main"]
+# section renamed
+ignore = [
+    "build",
+    "docs",
+    "examples",
+    "scripts",
+]
+prefer-stubs = false
+ignore-patterns = [
+    '.*\.pyi$',
+]
+
+[tool.pylint."format"]
+max-line-length = 120
+
+[tool.pylint."messages control"]
+disable = [
+  "raw-checker-failed",
+  "bad-inline-option",
+  "locally-disabled",
+  "file-ignored",
+  "suppressed-message",
+  "useless-suppression",
+  "deprecated-pragma",
+  "use-symbolic-message-instead",
+  "use-implicit-booleaness-not-comparison-to-string",
+  "use-implicit-booleaness-not-comparison-to-zero",
+  "attribute-defined-outside-init",
+  "bad-mcs-classmethod-argument",
+  "bare-except",
+  "broad-exception-caught",
+  "duplicate-bases",
+  "duplicate-code",
+  "eval-used",
+  "fixme",
+  "import-error",
+  "import-outside-toplevel",
+  "import-self",
+  "inconsistent-return-statements",
+  "invalid-name",
+  "missing-module-docstring",
+  "missing-class-docstring",
+  "missing-function-docstring",
+  "no-else-return",
+  "no-member",
+  "no-self-argument",
+  "no-staticmethod-decorator",
+  "not-callable",
+  "protected-access",
+  "raise-missing-from",
+  "redefined-outer-name",
+  "too-few-public-methods",
+  "too-many-arguments",
+  "too-many-branches",
+  "too-many-instance-attributes",
+  "too-many-lines",
+  "too-many-locals",
+  "too-many-nested-blocks",
+  "too-many-public-methods",
+  "too-many-statements",
+  "wrong-import-position",
+  "wrong-import-order",
+  "ungrouped-imports",
+  "unused-argument",
+  "useless-object-inheritance",
+  "useless-import-alias",
+  "comparison-with-callable",
+  "try-except-raise",
+  "consider-using-with",
+  "consider-using-f-string",
+  "unspecified-encoding",
+]
