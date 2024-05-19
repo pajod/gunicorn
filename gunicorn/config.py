@@ -6,7 +6,6 @@
 # Please remember to run "make -C docs html" after update "desc" attributes.
 
 from functools import reduce
-import operator
 import argparse
 import copy
 import inspect

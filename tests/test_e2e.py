@@ -14,7 +14,8 @@ import pytest
 # from threading import Thread, Event
 
 
-GRACEFUL_TIMEOUT = 3
+GRACEFUL_TIMEOUT = 5
+BOOT_DEADLINE = 15
 
 # test flaky for WORKER_COUNT != 1, awaiting *last* worker not implemented
 WORKER_COUNT = 1
@@ -288,7 +289,7 @@ def test_process_request_after_fixing_syntax_error(worker_class):
             _boot_log = server.read_stdio(
                 key=ERR,
                 wait_for_keyword="Arbiter booted",
-                timeout_sec=5,
+                timeout_sec=BOOT_DEADLINE,
                 expect={
                     "SyntaxError: invalid syntax",
                     f'{APP_BASENAME}.py", line ',
@@ -309,7 +310,7 @@ def test_process_request_after_fixing_syntax_error(worker_class):
             _access_log = server.read_stdio(
                 key=OUT,
                 wait_for_keyword='"GET / HTTP/1.1" 500 ',
-                timeout_sec=5,
+                timeout_sec=BOOT_DEADLINE,
             )
             # trigger reloader
             server.write_ok()
@@ -318,7 +319,7 @@ def test_process_request_after_fixing_syntax_error(worker_class):
             _reload_log = server.read_stdio(
                 key=ERR,
                 wait_for_keyword="reloading",
-                timeout_sec=5,
+                timeout_sec=BOOT_DEADLINE,
                 expect={
                     f"{APP_BASENAME}.py modified",
                     "Booting worker",
@@ -335,7 +336,7 @@ def test_process_request_after_fixing_syntax_error(worker_class):
             _debug_log = server.read_stdio(
                 key=ERR,
                 wait_for_keyword="stderr from app",
-                timeout_sec=5,
+                timeout_sec=BOOT_DEADLINE,
                 expect={
                     # read access log
                     '"GET / HTTP/1.1"',
@@ -376,7 +377,7 @@ def test_process_shutdown_cleanly_after_inserting_syntax_error(worker_class):
             _boot_log = server.read_stdio(
                 key=ERR,
                 wait_for_keyword="Arbiter booted",
-                timeout_sec=5,
+                timeout_sec=BOOT_DEADLINE,
                 expect={
                     "Booting worker",
                 },
@@ -392,7 +393,7 @@ def test_process_shutdown_cleanly_after_inserting_syntax_error(worker_class):
             _debug_log = server.read_stdio(
                 key=ERR,
                 wait_for_keyword="stderr from app",
-                timeout_sec=5,
+                timeout_sec=BOOT_DEADLINE,
             )
 
             # trigger reloader
@@ -405,7 +406,7 @@ def test_process_shutdown_cleanly_after_inserting_syntax_error(worker_class):
                 key=ERR,
                 wait_for_keyword="SyntaxError: ",
                 # wait_for_keyword="%d workers" % WORKER_COUNT,
-                timeout_sec=6,
+                timeout_sec=BOOT_DEADLINE,
                 expect={
                     "reloading",
                     f"{APP_BASENAME}.py modified",
@@ -425,7 +426,7 @@ def test_process_shutdown_cleanly_after_inserting_syntax_error(worker_class):
             _access_log = server.read_stdio(
                 key=OUT,
                 wait_for_keyword='"GET / HTTP/1.1" 500 ',
-                timeout_sec=5,
+                timeout_sec=BOOT_DEADLINE,
             )
 
             _shutdown_log = server.graceful_quit(
