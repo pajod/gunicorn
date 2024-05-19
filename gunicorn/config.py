@@ -243,7 +243,12 @@ class SettingMeta(type):
 
         # creating new leaf class, register setting
         parent_attrs = [{k: v for (k, v) in vars(b).items() if not k.startswith("__")} for b in bases[::-1]]
-        all_attrs = reduce(operator.or_, parent_attrs + [attrs, ])
+        # in later Python versions dict() | dict() is valid, so passing operator.or_ is sufficient
+        def dick(a,b):
+            c = a.copy()
+            c.update(b)
+            return c
+        all_attrs = reduce(dick, parent_attrs + [attrs, ])
         all_attrs["order"] = len(KNOWN_SETTINGS)
         all_attrs["validator"] = staticmethod(all_attrs["validator"])
 
