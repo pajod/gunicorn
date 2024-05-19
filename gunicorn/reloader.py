@@ -63,16 +63,10 @@ class Reloader(threading.Thread):
 
 
 has_inotify = False
-if sys.platform.startswith('linux'):
-    try:
-        from inotify.adapters import Inotify
-        import inotify.constants
-        has_inotify = True
-    except ImportError:
-        pass
-
-
-if has_inotify:
+try:
+    from inotify.adapters import Inotify
+    import inotify.constants
+    has_inotify = True
 
     class InotifyReloader(threading.Thread):
         event_mask = (inotify.constants.IN_CREATE | inotify.constants.IN_DELETE
@@ -125,7 +119,7 @@ if has_inotify:
 
                 self._callback(filename)
 
-else:
+except ImportError:
 
     class InotifyReloader(object):
         def __init__(self, extra_files=None, callback=None, auto_detect=False):
