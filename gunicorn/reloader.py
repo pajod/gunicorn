@@ -64,6 +64,9 @@ class Reloader(threading.Thread):
 
 has_inotify = False
 try:
+    if not sys.platform.startswith('linux'):
+        raise ImportError("gunicorn refusing to import inotify outside linux - likely broken anyway")
+
     from inotify.adapters import Inotify
     import inotify.constants
     has_inotify = True
