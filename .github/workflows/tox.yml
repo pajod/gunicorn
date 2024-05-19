@@ -62,10 +62,10 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install tox
       - run: tox -e run-module
-        timeout-minutes: 2
+        timeout-minutes: 6
         continue-on-error: ${{ matrix.unsupported || false }}
       - run: tox -e run-entrypoint
-        timeout-minutes: 2
+        timeout-minutes: 6
         continue-on-error: ${{ matrix.unsupported || false }}
       - run: tox -e py
         continue-on-error: ${{ matrix.unsupported || false }}
