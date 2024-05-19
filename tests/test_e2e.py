@@ -51,7 +51,7 @@ except ImportError:
     for T in (TEST_TOLERATES_BAD_BOOT, TEST_TOLERATES_BAD_RELOAD):
         T.remove("tornado")
         T.append(
-            pytest.param("tornado", marks=pytest.mark.skip("tornado not installed"))
+            pytest.param("tornado", marks=pytest.mark.skip("tornado not installed"))  # type: ignore[arg-type]
         )
 
 
