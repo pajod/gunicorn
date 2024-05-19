@@ -1,4 +1,14 @@
 version: '{branch}.{build}'
+image: Visual Studio 2022
+branches:
+  except:
+    - gh-pages
+skip_commits:
+  files:
+    - .github/workflows/*
+    - .github/actions/*
+# clone_depth: 1 produces odd "fatal: reference is not a tree" if pushing during checkout
+clone_depth: 5
 environment:
   matrix:
     - TOXENV: lint
@@ -6,7 +16,11 @@ environment:
     - TOXENV: docs-lint
       PYTHON: "C:\\Python38-x64"
     - TOXENV: pycodestyle
+      PYTHON: "C:\\Python312-x64"
+    - TOXENV: pycodestyle
       PYTHON: "C:\\Python38-x64"
+    - TOXENV: WSL
+      PYTHON: ''
     # Windows cannot even import the module when they unconditionally import, see below.
     #- TOXENV: run-module
     #  PYTHON: "C:\\Python38-x64"
@@ -14,10 +28,7 @@ environment:
     #  PYTHON: "C:\\Python38-x64"
     # Windows is not ready for testing!!!
     # Python's non-blocking pipes, grp, pwd, os.geteuid(), and socket.AF_UNIX are all Unix-only.
-    #- TOXENV: py35
-    #  PYTHON: "C:\\Python35-x64"
-    #- TOXENV: py36
-    #  PYTHON: "C:\\Python36-x64"
+    # Python's fcntl, grp, pwd, os.geteuid(), and socket.AF_UNIX are all Unix-only.
     #- TOXENV: py37
     #  PYTHON: "C:\\Python37-x64"
     #- TOXENV: py38
@@ -25,25 +36,42 @@ environment:
     #- TOXENV: py39
     #  PYTHON: "C:\\Python39-x64"
     #- TOXENV: py310
-    #  PYTHON: "C:\\Python310-x64"
+    #  PYTHON: "C:\\Python39-x64"
     #- TOXENV: py311
-    #  PYTHON: "C:\\Python311-x64"
+    #  PYTHON: "C:\\Python39-x64"
     #- TOXENV: py312
-    #  PYTHON: "C:\\Python312-x64"
+    #  PYTHON: "C:\\Python39-x64"
 matrix:
   allow_failures:
-    - TOXENV: py35
-    - TOXENV: py36
     - TOXENV: py37
     - TOXENV: py38
     - TOXENV: py39
 init:
   - SET "PATH=%PYTHON%;%PYTHON%\\Scripts;%PATH%"
-install:
-  - pip install tox
+for:
+  - matrix:
+      except:
+       - TOXENV: WSL
+    install:
+      - pip install tox
+    test_script:
+      - tox
+  - matrix:
+      only:
+       - TOXENV: WSL
+    # run the wsl -l call last for better error on failure
+    install:
+     - wsl pwd
+     - wsl whoami
+     - wsl.exe -l || ver>nul
+     - wsl cat /etc/os-release
+     - wsl sudo DEBIAN_FRONTEND=noninteractive apt-get update
+     - wsl sudo DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y python3-venv python3-pip
+     - wsl python3 -m venv .
+     - wsl bin/pip install -U pip tox
+    test_script:
+      - wsl bin/tox
 build: false
-test_script:
-  - tox
 cache:
   # Not including the .tox directory since it takes longer to download/extract
   # the cache archive than for tox to clean install from the pip cache.

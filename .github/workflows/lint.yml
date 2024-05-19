@@ -1,5 +1,14 @@
 name: lint
-on: [push, pull_request]
+on:
+  push:
+    paths-ignore:
+     - .github/appveyor.yml
+  #  tags:
+  #   - '*'
+  pull_request:
+  # on pull, automatic
+  workflow_dispatch:
+  # allow manual trigger
 permissions:
   contents: read # to fetch code (actions/checkout)
 env:
@@ -7,30 +16,43 @@ env:
   FORCE_COLOR: 1
 jobs:
   lint:
-    name: tox-${{ matrix.toxenv }}
-    runs-on: ubuntu-latest
+    name: ${{ matrix.toxenv }} / ${{ matrix.os }} / ${{ matrix.python-version }}
+    # https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#jobsjob_idti
+meout-minutes
+    timeout-minutes: 4
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         toxenv: [lint, docs-lint, pycodestyle, format, mypy]
         python-version: [ "3.10" ]
+        include:
+          - os: ubuntu-latest
+            python-version: "3.12"
+            toxenv: null
+          - os: windows-latest
+            python-version: "3.12"
+            toxenv: format
+          - os: macos-latest
+            python-version: "3.12"
+            toxenv: docs-lint
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
       - name: Using Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@0a5c61591373683505ea898e09a3ea4f39ef2b9c # v5.0.0
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
-      - name: Install Dependencies
+          cache-dependency-path: pyproject.toml
+      - name: "Install Dependencies (cache hit: ${{ steps.setup-python.outputs.cache-hit }})"
+        if: ${{ matrix.toxenv }}
         run: |
           python -m pip install --upgrade pip
           python -m pip install tox
       - run: tox -e ${{ matrix.toxenv }}
+        if: ${{ matrix.toxenv }}
       - name: "Lint support files"
         if: ${{ ! matrix.toxenv }}
-        # github UI shows a green checkmark instead of the original outcome :(
-        # should probably be called "force-conclusion: success"
-        continue-on-error: true
         env:
           # annoying results for pl_PL and fr_FR.. still the only *obvious* choice
           LC_ALL: C
