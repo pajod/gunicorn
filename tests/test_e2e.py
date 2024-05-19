@@ -154,6 +154,8 @@ class Server:
             "--on-fatal={}".format("world-readable" if public_traceback else "quiet"),
             # "--reload",
             "--reload-extra=%s" % self.py_path,
+            # FIXME: not utilizing inotify reduces test coverage
+            "--reload-engine=poll",
             "--bind=%s" % server_bind,
             "--reuse-port",
             f"{APP_BASENAME}:{APP_APPNAME}",

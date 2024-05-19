@@ -17,8 +17,7 @@ env:
 jobs:
   lint:
     name: ${{ matrix.toxenv }} / ${{ matrix.os }} / ${{ matrix.python-version }}
-    # https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#jobsjob_idti
-meout-minutes
+    # https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#jobsjob_idtimeout-minutes
     timeout-minutes: 4
     runs-on: ${{ matrix.os }}
     strategy:

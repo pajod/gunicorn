@@ -931,6 +931,8 @@ class ReloadEngine(Setting):
     desc = """\
         The implementation that should be used to power :ref:`reload`.
 
+        The inotify engine is known to be broken when using with gevent.
+
         Valid engines are:
 
         * ``'auto'``
