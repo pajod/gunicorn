@@ -41,8 +41,8 @@ class GeventWorker(AsyncWorker):
         # patch sockets
         sockets = []
         for s in self.sockets:
-            sockets.append(socket.socket(s.FAMILY, socket.SOCK_STREAM,
-                                         fileno=s.sock.fileno()))
+            sockets.append(socket.socket(s.family, socket.SOCK_STREAM,
+                                         fileno=s.fileno()))
         self.sockets = sockets
 
     def notify(self):
@@ -149,9 +149,9 @@ class GeventWorker(AsyncWorker):
 
 class GeventResponse(object):
 
-    status = None
-    headers = None
-    sent = None
+    # status: str
+    # headers: dict[tuple[str,str]]
+    # sent: int
 
     def __init__(self, status, headers, clength):
         assert isinstance(status, str)

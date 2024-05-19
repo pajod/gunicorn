@@ -24,15 +24,13 @@ from gunicorn.http.errors import (
 from gunicorn.http.message import Message
 from gunicorn.http.wsgi import Response, default_environ
 from gunicorn.reloader import reloader_engines
-from gunicorn.sock import TCPSocket
 from gunicorn.workers.workertmp import WorkerTmp
 
-peer_addr: TypeAlias = tuple[str, int] | str
-Pipe: Incomplete
+_t_peer_addr: TypeAlias = tuple[str, int] | str
 
 class Worker:
     SIGNALS: Incomplete
-    PIPE: list[Pipe]
+    PIPE: tuple[int, int]
     age: Incomplete
     pid: str
     ppid: Incomplete
@@ -52,7 +50,7 @@ class Worker:
         self,
         age: int,
         ppid: int,
-        sockets: list[TCPSocket],
+        sockets: list[socket],
         app: WSGIApplication,
         timeout: float,
         cfg: Config,
@@ -70,6 +68,6 @@ class Worker:
     def handle_quit(self, sig: Signals, frame: FrameType | None) -> None: ...
     def handle_abort(self, sig: Signals, frame: FrameType | None) -> None: ...
     def handle_error(
-        self, req: Message, client: Incomplete, addr: peer_addr, exc: BaseException
+        self, req: Message, client: Incomplete, addr: _t_peer_addr, exc: BaseException
     ) -> None: ...
     def handle_winch(self, sig: Signals, fname: FrameType | None) -> None: ...

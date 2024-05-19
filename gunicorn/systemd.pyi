@@ -1,4 +1,7 @@
-from gunicorn.glogging import Logger as Logger
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from gunicorn.glogging import Logger
 
 SD_LISTEN_FDS_START: int
 

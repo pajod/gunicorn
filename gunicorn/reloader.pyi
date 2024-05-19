@@ -7,19 +7,19 @@ from _typeshed import Incomplete
 
 COMPILED_EXT_RE: Pattern[str]
 
-reloader_cb: TypeAlias = Callable[[str], None]
+_reloader_cb: TypeAlias = Callable[[str], None]
 
 class Reloader(threading.Thread):
     daemon: bool
     def __init__(
         self,
-        extra_files: Incomplete | None = ...,
+        extra_files: Iterable[str] | None = ...,
         interval: int = ...,
-        callback: Incomplete | None = ...,
+        callback: _reloader_cb | None = ...,
+        auto_detect: bool = False,
     ) -> None: ...
     def add_extra_file(self, filename: str) -> None: ...
     def get_files(self) -> list[str]: ...
-    def run(self) -> None: ...
 
 has_inotify: bool
 
@@ -30,11 +30,11 @@ class InotifyReloader(threading.Thread):
     def __init__(
         self,
         extra_files: Iterable[str] | None = ...,
-        callback: reloader_cb | None = ...,
+        callback: _reloader_cb | None = ...,
+        auto_detect: bool = False,
     ) -> None: ...
     def add_extra_file(self, filename: str) -> None: ...
     def get_dirs(self) -> list[str]: ...
-    def run(self) -> None: ...
 
 preferred_reloader: type[InotifyReloader] | type[Reloader]
 reloader_engines: dict[str, type[InotifyReloader] | type[Reloader]]

@@ -1,20 +1,17 @@
+import socket
 from signal import Signals
 from types import FrameType
-from typing import Any, Dict, List, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Tuple
 
 from _typeshed import Incomplete
 
-from gunicorn import SERVER_SOFTWARE as SERVER_SOFTWARE
-from gunicorn import __version__ as __version__
-from gunicorn import sock as sock
-from gunicorn import systemd as systemd
-from gunicorn import util as util
+from gunicorn import SERVER_SOFTWARE, __version__, sock, systemd, util
 from gunicorn.app.base import BaseApplication
-from gunicorn.errors import AppImportError as AppImportError
-from gunicorn.errors import HaltServer as HaltServer
-from gunicorn.pidfile import Pidfile as Pidfile
-from gunicorn.sock import BaseSocket as BaseSocket
-from gunicorn.workers.base import Worker as Worker
+from gunicorn.errors import AppImportError, HaltServer
+from gunicorn.pidfile import Pidfile
+
+if TYPE_CHECKING:
+    from gunicorn.workers.base import Worker
 
 class Arbiter:
     WORKER_BOOT_ERROR: int
@@ -22,7 +19,7 @@ class Arbiter:
     START_CTX: dict[Any, Any]
     LISTENERS: list[Any]
     WORKERS: dict[int, Worker]
-    PIPE: list[tuple[BaseSocket, BaseSocket]]
+    PIPE: list[tuple[int, int]]
     SIG_QUEUE: list[Any]
     SIGNALS: Incomplete
     SIG_NAMES: Incomplete

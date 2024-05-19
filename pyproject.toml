@@ -101,6 +101,8 @@ testing-mindep = [
 ]
 lint-types = [
   "mypy>=1.10.0",
+  # 4.7.1 for NamedTuple edge cases
+  "typing_extensions>=4.7.1",
 ]
 # linting on fixed versions, upgrading to matrix-incompat pylint release is OK
 lint-code = [
@@ -118,11 +120,16 @@ style-types = [
   "black==23.11.0",
 ]
 testing = [
-    "gevent",
-    "eventlet",
     "coverage",
     "pytest>=7.2.0",
+    # for workers
+    "gevent",
+    "eventlet",
     "tornado>=6.0",
+    # for optional features
+    "PasteDeploy>=1.0",
+    "inotify",
+    "setproctitle",
 ]
 dev = [
     # setuptools v68.0 fails hard on invalid pyproject.toml
@@ -185,13 +192,15 @@ ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 # gevent known to not be typed
-module = "eventlet"
-ignore_missing_imports = true
+module = ["eventlet.*"]
+# .. disabled here, because stubtest likes the comment better
+# ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 # gevent known to not be typed
 module = "gevent"
-ignore_missing_imports = true
+# .. disabled here, because stubtest likes the comment better
+# ignore_missing_imports = true
 
 [tool.pypuprade]
 # pyupgrade does not read this. specify --py37-plus yourself

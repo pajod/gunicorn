@@ -30,7 +30,7 @@ class Logger:
     datefmt: str
     access_fmt: str
     syslog_fmt: str
-    atoms_wrapper_class = SafeAtoms
+    atoms_wrapper_class: type[dict] = SafeAtoms
     error_log: Incomplete
     access_log: Incomplete
     error_handlers: Incomplete

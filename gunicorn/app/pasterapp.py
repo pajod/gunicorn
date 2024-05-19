@@ -6,7 +6,7 @@
 import configparser
 import os
 
-from paste.deploy import loadapp
+from paste.deploy import loadapp  # type: ignore[import-untyped]
 
 from gunicorn.app.wsgiapp import WSGIApplication
 from gunicorn.config import get_default_config_file

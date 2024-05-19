@@ -1,3 +1,4 @@
+import builtins
 from argparse import ArgumentParser
 from collections.abc import Callable
 from ssl import (
@@ -9,6 +10,7 @@ from ssl import (
     _SSLMethod,
 )
 from typing import (
+    TYPE_CHECKING,
     Any,
     Dict,
     List,
@@ -24,25 +26,24 @@ from typing import (
 from _typeshed import Incomplete
 from typing_extensions import NamedTuple
 
-from gunicorn import __version__ as __version__
-from gunicorn import util as util
+from gunicorn import __version__, util
 from gunicorn.arbiter import Arbiter
-from gunicorn.errors import ConfigError as ConfigError
-from gunicorn.glogging import Logger as Logger
+from gunicorn.errors import ConfigError
+from gunicorn.glogging import Logger
 from gunicorn.http import Request
 from gunicorn.http.wsgi import Response
-from gunicorn.instrument.statsd import Statsd as Statsd
-from gunicorn.reloader import reloader_engines as reloader_engines
-from gunicorn.workers.base import Worker as Worker
+from gunicorn.instrument.statsd import Statsd
+from gunicorn.reloader import reloader_engines
+from gunicorn.workers.base import Worker
 
 KNOWN_SETTINGS: list[type[Setting]]
 PLATFORM: Incomplete
 
-t_pre_request: TypeAlias = Callable[[Worker, Request], None]
-t_post_request: TypeAlias = Callable[[Worker, Request, dict[str, str], Response], None]
-t_arbiter: TypeAlias = Callable[[Arbiter], None]
-t_worker: TypeAlias = Callable[[Worker], None]
-t_fork: TypeAlias = Callable[[Arbiter, Worker], None]
+_t_pre_request: TypeAlias = Callable[[Worker, Request], None]
+_t_post_request: TypeAlias = Callable[[Worker, Request, dict[str, str], Response], None]
+_t_arbiter: TypeAlias = Callable[[Arbiter], None]
+_t_worker: TypeAlias = Callable[[Worker], None]
+_t_fork: TypeAlias = Callable[[Arbiter, Worker], None]
 
 def make_settings(ignore: Incomplete | None = ...) -> dict[str, Setting]: ...
 def auto_int(_: Umask, x: str) -> int: ...
@@ -101,24 +102,25 @@ class SettingMeta(type):
     ) -> Any: ...
     def fmt_desc(cls, desc: str) -> None: ...
 
-class Setting:
-    name: str
-    value: Incomplete
-    section: str
-    cli: list[str]
-    validator: Callable[..., Incomplete]
-    type: Callable[..., Incomplete] | type[Callable[..., Incomplete]] | type[
-        int
-    ] | type[str]
-    meta: str
+class BaseSetting:
+    # defaults
+    name: str | None
+    section: str | None
+    value: None | bool | int | list[str] | str | Callable[..., Incomplete] | dict[
+        str, Incomplete
+    ]
+    cli: list[str] | None
+    validator: Callable[..., Incomplete] | None
+    type: Incomplete | type[int] | type[str]
+    meta: str | None
     action: str
     default: None | bool | int | list[str] | str | Callable[..., Incomplete] | dict[
         str, Incomplete
     ]
-    short: str
-    desc: str
-    nargs: str
-    const: bool
+    short: str | None
+    desc: str | None
+    nargs: str | None
+    const: bool | None
     def __init__(self) -> None: ...
     def add_option(self, parser: ArgumentParser) -> None: ...
     def copy(self) -> Setting: ...
@@ -126,6 +128,26 @@ class Setting:
     def set(self, val: Any) -> None: ...
     def __lt__(self, other: Setting) -> bool: ...
     __cmp__ = __lt__
+
+class Setting(BaseSetting, metaclass=SettingMeta):
+    # from SettingsMeta.__new__
+    # short: str
+    order: int
+
+class PosIntSetting(Setting):
+    type: type[int]
+    validator: Callable[..., Incomplete]
+
+class BoolSetting(Setting):
+    default: bool = False
+    action: str = "store_true"
+    validator: Callable[..., Incomplete]
+
+class HookSetting(Setting):
+    section: str = "Server Hooks"
+    validator: Callable[..., Incomplete]
+    value: Callable[..., Incomplete] | None  # FIXME
+    type: Incomplete
 
 @overload
 def validate_bool(val: None) -> None: ...
@@ -145,6 +167,7 @@ def validate_file_exists(val: str) -> str: ...
 def validate_list_string(val: str | list[str]) -> list[str | None]: ...
 def validate_list_of_existing_files(val: list[Any]) -> list[Any]: ...
 def validate_string_to_list(val: None | str) -> list[str]: ...
+def validate_string_to_addr_list(val: None | str) -> list[str]: ...
 def validate_class(val: Incomplete) -> Incomplete: ...
 def validate_callable(arity: int) -> Callable[..., Incomplete]: ...
 @overload
@@ -155,821 +178,213 @@ def validate_user(val: int) -> int: ...
 def validate_group(val: None) -> None: ...
 @overload
 def validate_group(val: int) -> int: ...
-def validate_post_request(val: t_post_request) -> t_post_request: ...
+def validate_post_request(val: _t_post_request) -> _t_post_request: ...
 def validate_chdir(val: str) -> str: ...
 def validate_statsd_address(val: str | None) -> tuple[str, int] | None: ...
 def validate_reload_engine(val: str) -> str: ...
 def get_default_config_file() -> str | None: ...
+@overload
+def validate_header_map_behaviour(val: None) -> None: ...
+@overload
+def validate_header_map_behaviour(val: str) -> str: ...
+@overload
+def validate_fatal_behaviour(val: None) -> None: ...
+@overload
+def validate_fatal_behaviour(val: str) -> str: ...
 
-class ConfigFile(Setting):
-    name: str
-    section: str
-    cli: Incomplete
-    meta: str
-    validator = validate_string
-    default: str
-    desc: str
-
-class WSGIApp(Setting):
-    name: str
-    section: str
-    meta: str
-    validator = validate_string
-    default: Incomplete
-    desc: str
-
-class Bind(Setting):
-    name: str
-    action: str
-    section: str
-    cli: Incomplete
-    meta: str
-    validator = validate_list_string
-    default: Incomplete
-    desc: str
-
-class Backlog(Setting):
-    name: str
-    section: str
-    cli: Incomplete
-    meta: str
-    validator = validate_pos_int
-    value: int
-    default: int
-    desc: str
-
-class Workers(Setting):
-    name: str
-    section: str
-    cli: Incomplete
-    meta: str
-    validator = validate_pos_int
-    value: int
-    default: Incomplete
-    desc: str
-
-class WorkerClass(Setting):
-    name: str
-    section: str
-    cli: Incomplete
-    meta: str
-    validator = validate_class
-    default: str
-    desc: str
-
-class WorkerThreads(Setting):
-    name: str
-    section: str
-    cli: Incomplete
-    meta: str
-    validator = validate_pos_int
-    value: int
-    default: int
-    desc: str
-
-class WorkerConnections(Setting):
-    name: str
-    section: str
-    cli: Incomplete
-    meta: str
-    validator = validate_pos_int
-    value: int
-    default: int
-    desc: str
-
-class MaxRequests(Setting):
-    name: str
-    section: str
-    cli: Incomplete
-    meta: str
-    validator = validate_pos_int
-    value: int
-    default: int
-    desc: str
-
-class MaxRequestsJitter(Setting):
-    name: str
-    section: str
-    cli: Incomplete
-    meta: str
-    validator = validate_pos_int
-    value: int
-    default: int
-    desc: str
-
-class Timeout(Setting):
-    name: str
-    section: str
-    cli: Incomplete
-    meta: str
-    validator = validate_pos_int
-    value: int
-    default: int
-    desc: str
-
-class GracefulTimeout(Setting):
-    name: str
-    section: str
-    cli: Incomplete
-    meta: str
-    validator = validate_pos_int
-    value: int
-    default: int
-    desc: str
-
-class Keepalive(Setting):
-    name: str
-    section: str
-    cli: Incomplete
-    meta: str
-    validator = validate_pos_int
-    value: int
-    default: int
-    desc: str
-
-class LimitRequestLine(Setting):
-    name: str
-    section: str
-    cli: Incomplete
-    meta: str
-    validator = validate_pos_int
-    value: int
-    default: int
-    desc: str
-
-class LimitRequestFields(Setting):
-    name: str
-    section: str
-    cli: Incomplete
-    meta: str
-    validator = validate_pos_int
-    value: int
-    default: int
-    desc: str
-
-class LimitRequestFieldSize(Setting):
-    name: str
-    section: str
-    cli: Incomplete
-    meta: str
-    validator = validate_pos_int
-    value: int
-    default: int
-    desc: str
-
-class Reload(Setting):
-    name: str
-    section: str
-    cli: Incomplete
-    validator = validate_bool
-    action: str
-    default: bool
-    desc: str
-
-class ReloadEngine(Setting):
-    name: str
-    section: str
-    cli: Incomplete
-    meta: str
-    validator = validate_reload_engine
-    default: str
-    desc: str
+class ConfigFile(Setting): ...
+class WSGIApp(Setting): ...
+class Bind(Setting): ...
+class Backlog(PosIntSetting): ...
+class Workers(PosIntSetting): ...
+class WorkerClass(Setting): ...
+class WorkerThreads(PosIntSetting): ...
+class WorkerConnections(PosIntSetting): ...
+class MaxRequests(PosIntSetting): ...
+class MaxRequestsJitter(PosIntSetting): ...
+class Timeout(PosIntSetting): ...
+class GracefulTimeout(PosIntSetting): ...
+class Keepalive(PosIntSetting): ...
+class LimitRequestLine(PosIntSetting): ...
+class LimitRequestFields(PosIntSetting): ...
+class LimitRequestFieldSize(PosIntSetting): ...
+class Reload(BoolSetting): ...
+class ReloadEngine(Setting): ...
 
 class ReloadExtraFiles(Setting):
-    name: str
-    action: str
-    section: str
-    cli: Incomplete
-    meta: str
-    validator = validate_list_of_existing_files
     default: list[Any]
-    desc: str
 
-class Spew(Setting):
-    name: str
-    section: str
-    cli: Incomplete
-    validator = validate_bool
-    action: str
-    default: bool
-    desc: str
-
-class ConfigCheck(Setting):
-    name: str
-    section: str
-    cli: Incomplete
-    validator = validate_bool
-    action: str
-    default: bool
-    desc: str
-
-class PrintConfig(Setting):
-    name: str
-    section: str
-    cli: Incomplete
-    validator = validate_bool
-    action: str
-    default: bool
-    desc: str
-
-class PreloadApp(Setting):
-    name: str
-    section: str
-    cli: Incomplete
-    validator = validate_bool
-    action: str
-    default: bool
-    desc: str
-
-class Sendfile(Setting):
-    name: str
-    section: str
-    cli: Incomplete
-    validator = validate_bool
-    action: str
-    const: bool
-    desc: str
-
-class ReusePort(Setting):
-    name: str
-    section: str
-    cli: Incomplete
-    validator = validate_bool
-    action: str
-    default: bool
-    desc: str
-
-class Chdir(Setting):
-    name: str
-    section: str
-    cli: Incomplete
-    validator = validate_chdir
-    default: Incomplete
-    default_doc: str
-    desc: str
-
-class Daemon(Setting):
-    name: str
-    section: str
-    cli: Incomplete
-    validator = validate_bool
-    action: str
-    default: bool
-    desc: str
-
-class Env(Setting):
-    name: str
-    action: str
-    section: str
-    cli: Incomplete
-    meta: str
-    validator = validate_list_string
-    default: list[Any]
-    desc: str
-
-class Pidfile(Setting):
-    name: str
-    section: str
-    cli: Incomplete
-    meta: str
-    validator = validate_string
-    default: Incomplete
-    desc: str
-
-class WorkerTmpDir(Setting):
-    name: str
-    section: str
-    cli: Incomplete
-    meta: str
-    validator = validate_string
-    default: Incomplete
-    desc: str
+class Spew(BoolSetting): ...
+class ConfigCheck(BoolSetting): ...
+class PrintConfig(BoolSetting): ...
+class PreloadApp(BoolSetting): ...
+class Sendfile(Setting): ...
+class ReusePort(BoolSetting): ...
+class Chdir(Setting): ...
+class Daemon(BoolSetting): ...
+class Env(Setting): ...
+class Pidfile(Setting): ...
+class WorkerTmpDir(Setting): ...
 
 class User(Setting):
-    name: str
-    section: str
-    cli: Incomplete
-    meta: str
-    validator = validate_user
-    default: None
     value: int | None
-    default_doc: str
-    desc: str
 
 class Group(Setting):
-    name: str
-    section: str
-    cli: Incomplete
-    meta: str
-    validator = validate_group
-    default: None
     value: int | None
-    default_doc: str
-    desc: str
 
-class Umask(Setting):
-    name: str
-    section: str
-    cli: Incomplete
-    meta: str
-    validator = validate_pos_int
-    value: int
-    default: int
-    desc: str
-
-class Initgroups(Setting):
-    name: str
-    section: str
-    cli: Incomplete
-    validator = validate_bool
-    action: str
-    default: bool
-    desc: str
-
-class TmpUploadDir(Setting):
-    name: str
-    section: str
-    meta: str
-    validator = validate_string
-    default: Incomplete
-    desc: str
+class Umask(Setting): ...
+class Initgroups(BoolSetting): ...
+class TmpUploadDir(Setting): ...
 
 class SecureSchemeHeader(Setting):
-    name: str
-    section: str
-    validator = validate_dict
     default: dict[str, str]
-    desc: str
 
-class ForwardedAllowIPS(Setting):
-    name: str
-    section: str
-    cli: Incomplete
-    meta: str
-    validator = validate_string_to_list
-    default: Incomplete
-    desc: str
-
-class AccessLog(Setting):
-    name: str
-    section: str
-    cli: Incomplete
-    meta: str
-    validator = validate_string
-    default: Incomplete
-    desc: str
-
-class DisableRedirectAccessToSyslog(Setting):
-    name: str
-    section: str
-    cli: Incomplete
-    validator = validate_bool
-    action: str
-    default: bool
-    desc: str
-
-class AccessLogFormat(Setting):
-    name: str
-    section: str
-    cli: Incomplete
-    meta: str
-    validator = validate_string
-    default: str
-    desc: str
-
-class ErrorLog(Setting):
-    name: str
-    section: str
-    cli: Incomplete
-    meta: str
-    validator = validate_string
-    default: str
-    desc: str
-
-class Loglevel(Setting):
-    name: str
-    section: str
-    cli: Incomplete
-    meta: str
-    validator = validate_string
-    default: str
-    desc: str
-
-class CaptureOutput(Setting):
-    name: str
-    section: str
-    cli: Incomplete
-    validator = validate_bool
-    action: str
-    default: bool
-    desc: str
-
-class LoggerClass(Setting):
-    name: str
-    section: str
-    cli: Incomplete
-    meta: str
-    validator = validate_class
-    default: str
-    desc: str
-
-class LogConfig(Setting):
-    name: str
-    section: str
-    cli: Incomplete
-    meta: str
-    validator = validate_string
-    default: Incomplete
-    desc: str
+class ForwardedAllowIPS(Setting): ...
+class AccessLog(Setting): ...
+class DisableRedirectAccessToSyslog(BoolSetting): ...
+class AccessLogFormat(Setting): ...
+class ErrorLog(Setting): ...
+class Loglevel(Setting): ...
+class CaptureOutput(BoolSetting): ...
+class LoggerClass(Setting): ...
+class LogConfig(Setting): ...
 
 class LogConfigDict(Setting):
-    name: str
-    section: str
-    validator = validate_dict
     default: dict[Any, Any]
-    desc: str
 
-class LogConfigJson(Setting):
-    name: str
-    section: str
-    cli: Incomplete
-    meta: str
-    validator = validate_string
-    default: Incomplete
-    desc: str
+class LogConfigJson(Setting): ...
+class SyslogTo(Setting): ...
+class Syslog(BoolSetting): ...
+class SyslogPrefix(Setting): ...
+class SyslogFacility(Setting): ...
+class EnableStdioInheritance(BoolSetting): ...
+class StatsdHost(Setting): ...
+class DogstatsdTags(Setting): ...
+class StatsdPrefix(Setting): ...
+class Procname(Setting): ...
+class DefaultProcName(Setting): ...
+class PythonPath(Setting): ...
+class Paste(Setting): ...
 
-class SyslogTo(Setting):
-    name: str
-    section: str
-    cli: Incomplete
-    meta: str
-    validator = validate_string
-    default: str
-    desc: str
-
-class Syslog(Setting):
-    name: str
-    section: str
-    cli: Incomplete
-    validator = validate_bool
-    action: str
-    default: bool
-    desc: str
-
-class SyslogPrefix(Setting):
-    name: str
-    section: str
-    cli: Incomplete
-    meta: str
-    validator = validate_string
-    default: Incomplete
-    desc: str
-
-class SyslogFacility(Setting):
-    name: str
-    section: str
-    cli: Incomplete
-    meta: str
-    validator = validate_string
-    default: str
-    desc: str
-
-class EnableStdioInheritance(Setting):
-    name: str
-    section: str
-    cli: Incomplete
-    validator = validate_bool
-    default: bool
-    action: str
-    desc: str
-
-class StatsdHost(Setting):
-    name: str
-    section: str
-    cli: Incomplete
-    meta: str
-    default: Incomplete
-    validator = validate_statsd_address
-    desc: str
-
-class DogstatsdTags(Setting):
-    name: str
-    section: str
-    cli: Incomplete
-    meta: str
-    default: str
-    validator = validate_string
-    desc: str
-
-class StatsdPrefix(Setting):
-    name: str
-    section: str
-    cli: Incomplete
-    meta: str
-    default: str
-    validator = validate_string
-    desc: str
-
-class Procname(Setting):
-    name: str
-    section: str
-    cli: Incomplete
-    meta: str
-    validator = validate_string
-    default: Incomplete
-    desc: str
-
-class DefaultProcName(Setting):
-    name: str
-    section: str
-    validator = validate_string
-    default: str
-    desc: str
-
-class PythonPath(Setting):
-    name: str
-    section: str
-    cli: Incomplete
-    meta: str
-    validator = validate_string
-    default: Incomplete
-    desc: str
-
-class Paste(Setting):
-    name: str
-    section: str
-    cli: Incomplete
-    meta: str
-    validator = validate_string
-    default: Incomplete
-    desc: str
-
-class OnStarting(Setting):
-    name: str
-    section: str
-    validator: Incomplete
-    vallue: Callable[[Arbiter], None]
+class OnStarting(HookSetting):
     @staticmethod
     def on_starting(server: Arbiter) -> None: ...
-    default = on_starting
-    desc: str
+    default: _t_arbiter
+    value: _t_arbiter | None  # FIXME: cannot be None
 
-class OnReload(Setting):
-    name: str
-    section: str
-    validator: Incomplete
-    value: Callable[[Arbiter], None]
+class OnReload(HookSetting):
     @staticmethod
     def on_reload(server: Arbiter) -> None: ...
-    default = on_reload
-    desc: str
+    default: _t_arbiter
+    value: _t_arbiter | None  # FIXME: cannot be None
 
-class WhenReady(Setting):
-    name: str
-    section: str
-    validator: Incomplete
-    value: Callable[[Arbiter], None]
+class WhenReady(HookSetting):
     @staticmethod
     def when_ready(server: Arbiter) -> None: ...
-    default = when_ready
-    desc: str
+    default: _t_arbiter
+    value: _t_arbiter | None  # FIXME: cannot be None
 
-class Prefork(Setting):
-    name: str
-    section: str
-    validator: Incomplete
-    value: t_fork
+class Prefork(HookSetting):
     @staticmethod
     def pre_fork(server: Arbiter, worker: Worker) -> None: ...
-    default: t_fork = pre_fork
-    desc: str
+    default: _t_fork
+    value: _t_fork | None  # FIXME: cannot be None
 
-class Postfork(Setting):
-    name: str
-    section: str
-    validator: Incomplete
-    value: t_fork
+class Postfork(HookSetting):
     @staticmethod
     def post_fork(server: Arbiter, worker: Worker) -> None: ...
-    default: t_fork
-    desc: str
+    default: _t_fork
+    value: _t_fork | None  # FIXME: cannot be None
 
-class PostWorkerInit(Setting):
-    name: str
-    section: str
-    validator: Incomplete
-    value: t_worker
-    default: t_worker
+class PostWorkerInit(HookSetting):
+    value: _t_worker | None  # FIXME: cannot be None
+    default: _t_worker
     @staticmethod
     def post_worker_init(worker: Worker) -> None: ...
-    desc: str
 
-class WorkerInt(Setting):
-    name: str
-    section: str
-    validator: Incomplete
-    value: t_worker
-    default: t_worker
+class WorkerInt(HookSetting):
+    value: _t_worker | None  # FIXME: cannot be None
+    default: _t_worker
     @staticmethod
     def worker_int(worker: Worker) -> None: ...
-    desc: str
 
-class WorkerAbort(Setting):
-    name: str
-    section: str
-    validator: Incomplete
-    value: t_worker
-    default: t_worker
+class WorkerAbort(HookSetting):
+    value: _t_worker | None  # FIXME: cannot be None
+    default: _t_worker
     @staticmethod
     def worker_abort(worker: Worker) -> None: ...
-    desc: str
 
-class PreExec(Setting):
-    name: str
-    section: str
-    validator: Incomplete
+class PreExec(HookSetting):
     @staticmethod
     def pre_exec(server: Arbiter) -> None: ...
-    default: t_arbiter
-    value: t_arbiter
-    desc: str
+    default: _t_arbiter
+    value: _t_arbiter | None  # FIXME: cannot be None
 
-class PreRequest(Setting):
-    name: str
-    section: str
-    validator: Incomplete
-    pre_request: t_pre_request
-    default: t_pre_request
-    value: t_pre_request
-    desc: str
+class PreRequest(HookSetting):
+    pre_request: _t_pre_request
+    default: _t_pre_request
+    value: _t_pre_request | None  # FIXME: cannot be None
 
-class PostRequest(Setting):
-    name: str
-    section: str
-    validator = validate_post_request
+class PostRequest(HookSetting):
     @staticmethod
     def post_request(
         worker: Worker, req: Request, environ: dict[str, str], resp: Response
     ) -> None: ...
-    default: t_post_request
-    value: t_post_request
-    desc: str
+    default: _t_post_request
+    value: _t_post_request | None  # FIXME: cannot be None
 
-class ChildExit(Setting):
-    name: str
-    section: str
-    validator: Incomplete
-    type = callable
+class ChildExit(HookSetting):
     @staticmethod
     def child_exit(server: Arbiter, worker: Worker) -> None: ...
     default: Callable[[Arbiter, Worker], None]
-    desc: str
+    value: Callable[[Arbiter, Worker], None] | None  # FIXME: cannot be None
 
-class WorkerExit(Setting):
-    name: str
-    section: str
-    validator: Incomplete
+class WorkerExit(HookSetting):
     @staticmethod
     def worker_exit(server: Arbiter, worker: Worker) -> None: ...
-    default: t_fork
-    value: t_fork
-    desc: str
+    default: _t_fork
+    value: _t_fork | None  # FIXME: cannot be None
 
 class NumWorkersChanged(Setting):
-    name: str
-    section: str
-    validator: Incomplete
     @staticmethod
     def nworkers_changed(
         server: Arbiter, new_value: int, old_value: int | None
     ) -> None: ...
-    default: Callable[[Arbiter, int, int | None], None] = nworkers_changed
-    value: Callable[[Arbiter, int, int | None], None]
-    desc: str
+    default: Callable[[Arbiter, int, int | None], None]
+    value: Callable[[Arbiter, int, int | None], None] | None  # FIXME: cannot be None
 
-class OnExit(Setting):
-    name: str
-    section: str
-    validator: Incomplete
+class OnExit(HookSetting):
     @staticmethod
     def on_exit(server: Arbiter) -> None: ...
-    default: t_arbiter
-    value: t_arbiter
-    desc: str
+    default: _t_arbiter
+    value: _t_arbiter | None  # FIXME: cannot be None
 
-class NewSSLContext(Setting):
-    name: str
-    section: str
-    validator: Incomplete
+class NewSSLContext(HookSetting):
     @staticmethod
     def ssl_context(
         config: Config, default_ssl_context_factory: type[SSLContext]
     ) -> SSLContext: ...
     default: Callable[[Config, type[SSLContext]], SSLContext]
-    value: Callable[[Config, type[SSLContext]], SSLContext]
-    desc: str
+    value: Callable[
+        [Config, type[SSLContext]], SSLContext
+    ] | None  # FIXME: cannot be None
 
-class ProxyProtocol(Setting):
-    name: str
-    section: str
-    cli: Incomplete
-    default: bool
-    value: bool
-    action: str
-    desc: str
-
-class ProxyAllowFrom(Setting):
-    name: str
-    section: str
-    cli: Incomplete
-    validator = validate_string_to_list
-    default: str
-    desc: str
-
-class KeyFile(Setting):
-    name: str
-    section: str
-    cli: Incomplete
-    meta: str
-    validator = validate_string
-    default: Incomplete
-    desc: str
-
-class CertFile(Setting):
-    name: str
-    section: str
-    cli: Incomplete
-    meta: str
-    validator = validate_string
-    default: Incomplete
-    desc: str
-
-class SSLVersion(Setting):
-    name: str
-    section: str
-    cli: Incomplete
-    validator = validate_ssl_version
-    default: Incomplete
-    desc: str
-
-class CertReqs(Setting):
-    name: str
-    section: str
-    cli: Incomplete
-    validator = validate_pos_int
-    default: Incomplete
-    desc: str
-
-class CACerts(Setting):
-    name: str
-    section: str
-    cli: Incomplete
-    meta: str
-    validator = validate_string
-    default: Incomplete
-    desc: str
-
-class SuppressRaggedEOFs(Setting):
-    name: str
-    section: str
-    cli: Incomplete
-    action: str
-    default: bool
-    value: bool
-    desc: str
-
-class DoHandshakeOnConnect(Setting):
-    name: str
-    section: str
-    cli: Incomplete
-    vallue: bool
-    action: str
-    default: bool
-    desc: str
-
-class Ciphers(Setting):
-    name: str
-    section: str
-    cli: Incomplete
-    validator = validate_string
-    default: Incomplete
-    desc: str
-
-class PasteGlobalConf(Setting):
-    name: str
-    action: str
-    section: str
-    cli: Incomplete
-    meta: str
-    validator = validate_list_string
-    default: list[str]
-    desc: str
-
-class StripHeaderSpaces(Setting):
-    name: str
-    section: str
-    cli: Incomplete
-    value: bool
-    action: str
-    default: bool
-    desc: str
+class ProxyProtocol(BoolSetting): ...
+class ProxyAllowFrom(Setting): ...
+class KeyFile(Setting): ...
+class CertFile(Setting): ...
+class SSLVersion(Setting): ...
+class CertReqs(Setting): ...
+class CACerts(Setting): ...
+class SuppressRaggedEOFs(BoolSetting): ...
+class DoHandshakeOnConnect(BoolSetting): ...
+class Ciphers(Setting): ...
+class PasteGlobalConf(Setting): ...
+class StripHeaderSpaces(BoolSetting): ...
+class PermitUnconventionalHTTPMethod(BoolSetting): ...
+class PermitUnconventionalHTTPVersion(BoolSetting): ...
+class CasefoldHTTPMethod(BoolSetting): ...
+class ForwarderHeaders(Setting): ...
+class HeaderMap(Setting): ...
+class TolerateDangerousFraming(BoolSetting): ...
+class OnFatal(Setting): ...

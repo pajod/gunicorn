@@ -5,6 +5,15 @@ from _typeshed import Incomplete
 
 from gunicorn.workers.base import Worker
 
+TORNADO5: bool
+
+class TornadoResponse:
+    status: str
+    headers: list[tuple[str, str]]
+    sent: int
+
+    def __init__(self, status: str, headers: list[tuple[str, str]], clength: int): ...
+
 class TornadoWorker(Worker):
     @classmethod
     def setup(cls) -> None: ...

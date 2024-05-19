@@ -1,10 +1,13 @@
+from typing import TYPE_CHECKING
+
 from _typeshed import Incomplete
 from typing_extensions import Self
 
-from gunicorn.config import Config as Config
-from gunicorn.http.message import Request as Request
-from gunicorn.http.unreader import IterUnreader as IterUnreader
-from gunicorn.http.unreader import SocketUnreader as SocketUnreader
+from gunicorn.http.message import Request
+from gunicorn.http.unreader import IterUnreader, SocketUnreader
+
+if TYPE_CHECKING:
+    from gunicorn.config import Config
 
 class Parser:
     mesg_class: type[Request] | None
@@ -19,4 +22,4 @@ class Parser:
     next = __next__
 
 class RequestParser(Parser):
-    mesg_class = Request
+    mesg_class: type[Request] = Request

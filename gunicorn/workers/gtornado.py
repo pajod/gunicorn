@@ -32,11 +32,7 @@ from gunicorn.sock import ssl_context
 TORNADO5 = tornado.version_info >= (5, 0, 0)
 
 
-class TornadoResponse(object):
-
-    status = None
-    headers = None
-    sent = None
+class TornadoResponse:
 
     def __init__(self, status, headers, clength):
         assert isinstance(status, str)
@@ -65,7 +61,7 @@ class TornadoWorker(Worker):
         if self.alive:
             super().handle_exit(sig, frame)
 
-    def handle_log(self, status_code, request, environ) -> None:
+    def _handle_log(self, status_code, request, environ) -> None:
         # FIXME: unfinished
         status = "%d" % status_code
         # FIXME: unfinished
@@ -151,7 +147,7 @@ class TornadoWorker(Worker):
             def new_log(instance, status_code, request):
                 env = instance.environ(request)
                 env['RAW_URI'] = request.path  # FIXME: guessed, not tested
-                self.handle_log(status_code, request, env)
+                self._handle_log(status_code, request, env)
             # FIXME: pylint hates instance patching
             app._log = new_log.__get__(app, WSGIContainer)
 

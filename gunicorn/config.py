@@ -5,6 +5,8 @@
 
 # Please remember to run "make -C docs html" after update "desc" attributes.
 
+from functools import reduce
+import operator
 import argparse
 import copy
 import inspect
@@ -234,15 +236,18 @@ class Config(object):
 class SettingMeta(type):
     def __new__(cls, name, bases, attrs):
         super_new = super().__new__
-        parents = [b for b in bases if isinstance(b, SettingMeta)]
-        if not parents:
+
+        # creating parent class, return without registering known setting
+        if "desc" not in attrs:
             return super_new(cls, name, bases, attrs)
 
-        attrs["order"] = len(KNOWN_SETTINGS)
-        attrs["validator"] = staticmethod(attrs["validator"])
+        # creating new leaf class, register setting
+        all_attrs = reduce(operator.or_, [{k:v for (k,v) in vars(b).items() if not k.startswith("__")} for b in bases[::-1]] + [attrs, ])
+        all_attrs["order"] = len(KNOWN_SETTINGS)
+        all_attrs["validator"] = staticmethod(all_attrs["validator"])
 
-        new_class = super_new(cls, name, bases, attrs)
-        new_class.fmt_desc(attrs.get("desc", ""))
+        new_class = super_new(cls, name, bases, all_attrs)
+        new_class.fmt_desc(all_attrs.get("desc", ""))
         KNOWN_SETTINGS.append(new_class)
         return new_class
 
@@ -252,15 +257,15 @@ class SettingMeta(type):
         setattr(cls, "short", desc.splitlines()[0])
 
 
-class Setting(object):
+class BaseSetting:
     name = None
     value = None
     section = None
     cli = None
     validator = None
-    type = None
+    type = str
     meta = None
-    action = None
+    action = "store"
     default = None
     short = None
     desc = None
@@ -281,9 +286,9 @@ class Setting(object):
 
         kwargs = {
             "dest": self.name,
-            "action": self.action or "store",
-            "type": self.type or str,
             "default": None,
+            "action": self.action,
+            "type": self.type,
             "help": help_txt
         }
 
@@ -326,9 +331,6 @@ class Setting(object):
         )
 
 
-Setting = SettingMeta('Setting', (Setting,), {})
-
-
 def validate_bool(val):
     if val is None:
         return
@@ -343,7 +345,6 @@ def validate_bool(val):
         return False
     else:
         raise ValueError("Invalid boolean: %s" % val)
-
 
 def validate_dict(val):
     if not isinstance(val, dict):
@@ -360,7 +361,6 @@ def validate_pos_int(val):
     if val < 0:
         raise ValueError("Value must be positive: %s" % (val, ))
     return val
-
 
 def validate_ssl_version(val):
     if val != SSLVersion.default:
@@ -545,6 +545,24 @@ def get_default_config_file():
         return config_path
     return None
 
+class Setting(BaseSetting, metaclass=SettingMeta):
+    pass
+
+class PosIntSetting(Setting):
+    meta = "INT"
+    validator = validate_pos_int
+    type = int
+
+class BoolSetting(Setting):
+    validator = validate_bool
+    default = False
+    action = 'store_true'
+
+class HookSetting(Setting):
+    section = "Server Hooks"
+    validator = validate_callable(-1)
+    type = callable
+
 
 class ConfigFile(Setting):
     name = "config"
@@ -618,13 +636,10 @@ class Bind(Setting):
         """
 
 
-class Backlog(Setting):
+class Backlog(PosIntSetting):
     name = "backlog"
     section = "Server Socket"
     cli = ["--backlog"]
-    meta = "INT"
-    validator = validate_pos_int
-    type = int
     default = 2048
     desc = """\
         The maximum number of pending connections.
@@ -638,13 +653,10 @@ class Backlog(Setting):
         """
 
 
-class Workers(Setting):
+class Workers(PosIntSetting):
     name = "workers"
     section = "Worker Processes"
     cli = ["-w", "--workers"]
-    meta = "INT"
-    validator = validate_pos_int
-    type = int
     default = int(os.environ.get("WEB_CONCURRENCY", 1))
     desc = """\
         The number of worker processes for handling requests.
@@ -693,13 +705,10 @@ class WorkerClass(Setting):
         """
 
 
-class WorkerThreads(Setting):
+class WorkerThreads(PosIntSetting):
     name = "threads"
     section = "Worker Processes"
     cli = ["--threads"]
-    meta = "INT"
-    validator = validate_pos_int
-    type = int
     default = 1
     desc = """\
         The number of worker threads for handling requests.
@@ -721,13 +730,10 @@ class WorkerThreads(Setting):
         """
 
 
-class WorkerConnections(Setting):
+class WorkerConnections(PosIntSetting):
     name = "worker_connections"
     section = "Worker Processes"
     cli = ["--worker-connections"]
-    meta = "INT"
-    validator = validate_pos_int
-    type = int
     default = 1000
     desc = """\
         The maximum number of simultaneous clients.
@@ -736,13 +742,10 @@ class WorkerConnections(Setting):
         """
 
 
-class MaxRequests(Setting):
+class MaxRequests(PosIntSetting):
     name = "max_requests"
     section = "Worker Processes"
     cli = ["--max-requests"]
-    meta = "INT"
-    validator = validate_pos_int
-    type = int
     default = 0
     desc = """\
         The maximum number of requests a worker will process before restarting.
@@ -756,13 +759,10 @@ class MaxRequests(Setting):
         """
 
 
-class MaxRequestsJitter(Setting):
+class MaxRequestsJitter(PosIntSetting):
     name = "max_requests_jitter"
     section = "Worker Processes"
     cli = ["--max-requests-jitter"]
-    meta = "INT"
-    validator = validate_pos_int
-    type = int
     default = 0
     desc = """\
         The maximum jitter to add to the *max_requests* setting.
@@ -775,13 +775,10 @@ class MaxRequestsJitter(Setting):
         """
 
 
-class Timeout(Setting):
+class Timeout(PosIntSetting):
     name = "timeout"
     section = "Worker Processes"
     cli = ["-t", "--timeout"]
-    meta = "INT"
-    validator = validate_pos_int
-    type = int
     default = 30
     desc = """\
         Workers silent for more than this many seconds are killed and restarted.
@@ -797,13 +794,10 @@ class Timeout(Setting):
         """
 
 
-class GracefulTimeout(Setting):
+class GracefulTimeout(PosIntSetting):
     name = "graceful_timeout"
     section = "Worker Processes"
     cli = ["--graceful-timeout"]
-    meta = "INT"
-    validator = validate_pos_int
-    type = int
     default = 30
     desc = """\
         Timeout for graceful workers restart.
@@ -814,13 +808,10 @@ class GracefulTimeout(Setting):
         """
 
 
-class Keepalive(Setting):
+class Keepalive(PosIntSetting):
     name = "keepalive"
     section = "Worker Processes"
     cli = ["--keep-alive"]
-    meta = "INT"
-    validator = validate_pos_int
-    type = int
     default = 2
     desc = """\
         The number of seconds to wait for requests on a Keep-Alive connection.
@@ -836,13 +827,10 @@ class Keepalive(Setting):
         """
 
 
-class LimitRequestLine(Setting):
+class LimitRequestLine(PosIntSetting):
     name = "limit_request_line"
     section = "Security"
     cli = ["--limit-request-line"]
-    meta = "INT"
-    validator = validate_pos_int
-    type = int
     default = 4094
     desc = """\
         The maximum size of HTTP request line in bytes.
@@ -860,13 +848,10 @@ class LimitRequestLine(Setting):
         """
 
 
-class LimitRequestFields(Setting):
+class LimitRequestFields(PosIntSetting):
     name = "limit_request_fields"
     section = "Security"
     cli = ["--limit-request-fields"]
-    meta = "INT"
-    validator = validate_pos_int
-    type = int
     default = 100
     desc = """\
         Limit the number of HTTP headers fields in a request.
@@ -878,13 +863,10 @@ class LimitRequestFields(Setting):
         """
 
 
-class LimitRequestFieldSize(Setting):
+class LimitRequestFieldSize(PosIntSetting):
     name = "limit_request_field_size"
     section = "Security"
     cli = ["--limit-request-field_size"]
-    meta = "INT"
-    validator = validate_pos_int
-    type = int
     default = 8190
     desc = """\
         Limit the allowed size of an HTTP request header field.
@@ -898,13 +880,10 @@ class LimitRequestFieldSize(Setting):
         """
 
 
-class Reload(Setting):
+class Reload(BoolSetting):
     name = "reload"
     section = 'Debugging'
     cli = ['--reload']
-    validator = validate_bool
-    action = 'store_true'
-    default = False
 
     desc = '''\
         Restart workers when code changes.
@@ -969,13 +948,10 @@ class ReloadExtraFiles(Setting):
         """
 
 
-class Spew(Setting):
+class Spew(BoolSetting):
     name = "spew"
     section = "Debugging"
     cli = ["--spew"]
-    validator = validate_bool
-    action = "store_true"
-    default = False
     desc = """\
         Install a trace function that spews every line executed by the server.
 
@@ -983,38 +959,29 @@ class Spew(Setting):
         """
 
 
-class ConfigCheck(Setting):
+class ConfigCheck(BoolSetting):
     name = "check_config"
     section = "Debugging"
     cli = ["--check-config"]
-    validator = validate_bool
-    action = "store_true"
-    default = False
     desc = """\
         Check the configuration and exit. The exit status is 0 if the
         configuration is correct, and 1 if the configuration is incorrect.
         """
 
 
-class PrintConfig(Setting):
+class PrintConfig(BoolSetting):
     name = "print_config"
     section = "Debugging"
     cli = ["--print-config"]
-    validator = validate_bool
-    action = "store_true"
-    default = False
     desc = """\
         Print the configuration settings as fully resolved. Implies :ref:`check-config`.
         """
 
 
-class PreloadApp(Setting):
+class PreloadApp(BoolSetting):
     name = "preload_app"
     section = "Server Mechanics"
     cli = ["--preload"]
-    validator = validate_bool
-    action = "store_true"
-    default = False
     desc = """\
         Load application code before the worker processes are forked.
 
@@ -1048,13 +1015,10 @@ class Sendfile(Setting):
         """
 
 
-class ReusePort(Setting):
+class ReusePort(BoolSetting):
     name = "reuse_port"
     section = "Server Mechanics"
     cli = ["--reuse-port"]
-    validator = validate_bool
-    action = "store_true"
-    default = False
 
     desc = """\
         Set the ``SO_REUSEPORT`` flag on the listening socket.
@@ -1069,19 +1033,16 @@ class Chdir(Setting):
     cli = ["--chdir"]
     validator = validate_chdir
     default = util.getcwd()
-    default_doc = "``'.'``"
+    _default_doc = "``'.'``"
     desc = """\
         Change directory to specified directory before loading apps.
         """
 
 
-class Daemon(Setting):
+class Daemon(BoolSetting):
     name = "daemon"
     section = "Server Mechanics"
     cli = ["-D", "--daemon"]
-    validator = validate_bool
-    action = "store_true"
-    default = False
     desc = """\
         Daemonize the Gunicorn process.
 
@@ -1220,13 +1181,10 @@ class Umask(Setting):
         """
 
 
-class Initgroups(Setting):
+class Initgroups(BoolSetting):
     name = "initgroups"
     section = "Server Mechanics"
     cli = ["--initgroups"]
-    validator = validate_bool
-    action = 'store_true'
-    default = False
 
     desc = """\
         If true, set the worker process's group access list with all of the
@@ -1386,13 +1344,10 @@ class AccessLog(Setting):
         """
 
 
-class DisableRedirectAccessToSyslog(Setting):
+class DisableRedirectAccessToSyslog(BoolSetting):
     name = "disable_redirect_access_to_syslog"
     section = "Logging"
     cli = ["--disable-redirect-access-to-syslog"]
-    validator = validate_bool
-    action = 'store_true'
-    default = False
     desc = """\
     Disable redirect access logs to syslog.
 
@@ -1482,13 +1437,10 @@ class Loglevel(Setting):
         """
 
 
-class CaptureOutput(Setting):
+class CaptureOutput(BoolSetting):
     name = "capture_output"
     section = "Logging"
     cli = ["--capture-output"]
-    validator = validate_bool
-    action = 'store_true'
-    default = False
     desc = """\
         Redirect stdout/stderr to specified file in :ref:`errorlog`.
 
@@ -1595,13 +1547,10 @@ class SyslogTo(Setting):
     """
 
 
-class Syslog(Setting):
+class Syslog(BoolSetting):
     name = "syslog"
     section = "Logging"
     cli = ["--log-syslog"]
-    validator = validate_bool
-    action = 'store_true'
-    default = False
     desc = """\
     Send *Gunicorn* logs to syslog.
 
@@ -1638,13 +1587,10 @@ class SyslogFacility(Setting):
     """
 
 
-class EnableStdioInheritance(Setting):
+class EnableStdioInheritance(BoolSetting):
     name = "enable_stdio_inheritance"
     section = "Logging"
     cli = ["-R", "--enable-stdio-inheritance"]
-    validator = validate_bool
-    default = False
-    action = "store_true"
     desc = """\
     Enable stdio inheritance.
 
@@ -1767,11 +1713,9 @@ class Paste(Setting):
         """
 
 
-class OnStarting(Setting):
+class OnStarting(HookSetting):
     name = "on_starting"
-    section = "Server Hooks"
     validator = validate_callable(1)
-    type = callable
 
     @staticmethod
     def on_starting(server):
@@ -1784,11 +1728,9 @@ class OnStarting(Setting):
         """
 
 
-class OnReload(Setting):
+class OnReload(HookSetting):
     name = "on_reload"
-    section = "Server Hooks"
     validator = validate_callable(1)
-    type = callable
 
     @staticmethod
     def on_reload(server):
@@ -1801,11 +1743,9 @@ class OnReload(Setting):
         """
 
 
-class WhenReady(Setting):
+class WhenReady(HookSetting):
     name = "when_ready"
-    section = "Server Hooks"
     validator = validate_callable(1)
-    type = callable
 
     @staticmethod
     def when_ready(server):
@@ -1818,11 +1758,9 @@ class WhenReady(Setting):
         """
 
 
-class Prefork(Setting):
+class Prefork(HookSetting):
     name = "pre_fork"
-    section = "Server Hooks"
     validator = validate_callable(2)
-    type = callable
 
     @staticmethod
     def pre_fork(server, worker):
@@ -1836,11 +1774,9 @@ class Prefork(Setting):
         """
 
 
-class Postfork(Setting):
+class Postfork(HookSetting):
     name = "post_fork"
-    section = "Server Hooks"
     validator = validate_callable(2)
-    type = callable
 
     @staticmethod
     def post_fork(server, worker):
@@ -1854,11 +1790,9 @@ class Postfork(Setting):
         """
 
 
-class PostWorkerInit(Setting):
+class PostWorkerInit(HookSetting):
     name = "post_worker_init"
-    section = "Server Hooks"
     validator = validate_callable(1)
-    type = callable
 
     @staticmethod
     def post_worker_init(worker):
@@ -1873,11 +1807,9 @@ class PostWorkerInit(Setting):
         """
 
 
-class WorkerInt(Setting):
+class WorkerInt(HookSetting):
     name = "worker_int"
-    section = "Server Hooks"
     validator = validate_callable(1)
-    type = callable
 
     @staticmethod
     def worker_int(worker):
@@ -1892,11 +1824,9 @@ class WorkerInt(Setting):
         """
 
 
-class WorkerAbort(Setting):
+class WorkerAbort(HookSetting):
     name = "worker_abort"
-    section = "Server Hooks"
     validator = validate_callable(1)
-    type = callable
 
     @staticmethod
     def worker_abort(worker):
@@ -1913,11 +1843,9 @@ class WorkerAbort(Setting):
         """
 
 
-class PreExec(Setting):
+class PreExec(HookSetting):
     name = "pre_exec"
-    section = "Server Hooks"
     validator = validate_callable(1)
-    type = callable
 
     @staticmethod
     def pre_exec(server):
@@ -1930,11 +1858,9 @@ class PreExec(Setting):
         """
 
 
-class PreRequest(Setting):
+class PreRequest(HookSetting):
     name = "pre_request"
-    section = "Server Hooks"
     validator = validate_callable(2)
-    type = callable
 
     @staticmethod
     def pre_request(worker, req):
@@ -1948,11 +1874,9 @@ class PreRequest(Setting):
         """
 
 
-class PostRequest(Setting):
+class PostRequest(HookSetting):
     name = "post_request"
-    section = "Server Hooks"
     validator = validate_post_request
-    type = callable
 
     @staticmethod
     def post_request(worker, req, environ, resp):
@@ -1966,11 +1890,9 @@ class PostRequest(Setting):
         """
 
 
-class ChildExit(Setting):
+class ChildExit(HookSetting):
     name = "child_exit"
-    section = "Server Hooks"
     validator = validate_callable(2)
-    type = callable
 
     @staticmethod
     def child_exit(server, worker):
@@ -1986,11 +1908,9 @@ class ChildExit(Setting):
         """
 
 
-class WorkerExit(Setting):
+class WorkerExit(HookSetting):
     name = "worker_exit"
-    section = "Server Hooks"
     validator = validate_callable(2)
-    type = callable
 
     @staticmethod
     def worker_exit(server, worker):
@@ -2004,11 +1924,9 @@ class WorkerExit(Setting):
         """
 
 
-class NumWorkersChanged(Setting):
+class NumWorkersChanged(HookSetting):
     name = "nworkers_changed"
-    section = "Server Hooks"
     validator = validate_callable(3)
-    type = callable
 
     @staticmethod
     def nworkers_changed(server, new_value, old_value):
@@ -2025,9 +1943,8 @@ class NumWorkersChanged(Setting):
         """
 
 
-class OnExit(Setting):
+class OnExit(HookSetting):
     name = "on_exit"
-    section = "Server Hooks"
     validator = validate_callable(1)
 
     @staticmethod
@@ -2042,11 +1959,9 @@ class OnExit(Setting):
         """
 
 
-class NewSSLContext(Setting):
+class NewSSLContext(HookSetting):
     name = "ssl_context"
-    section = "Server Hooks"
     validator = validate_callable(2)
-    type = callable
 
     @staticmethod
     def ssl_context(config, default_ssl_context_factory):
@@ -2078,13 +1993,10 @@ class NewSSLContext(Setting):
         """
 
 
-class ProxyProtocol(Setting):
+class ProxyProtocol(BoolSetting):
     name = "proxy_protocol"
     section = "Server Mechanics"
     cli = ["--proxy-protocol"]
-    validator = validate_bool
-    default = False
-    action = "store_true"
     desc = """\
         Enable detect PROXY protocol (PROXY mode).
 
@@ -2124,7 +2036,7 @@ class KeyFile(Setting):
     section = "SSL"
     cli = ["--keyfile"]
     meta = "FILE"
-    validator = validate_string
+    validator = validate_file_exists
     default = None
     desc = """\
     SSL key file
@@ -2136,7 +2048,7 @@ class CertFile(Setting):
     section = "SSL"
     cli = ["--certfile"]
     meta = "FILE"
-    validator = validate_string
+    validator = validate_file_exists
     default = None
     desc = """\
     SSL certificate file
@@ -2219,25 +2131,20 @@ class CACerts(Setting):
     """
 
 
-class SuppressRaggedEOFs(Setting):
+class SuppressRaggedEOFs(BoolSetting):
     name = "suppress_ragged_eofs"
     section = "SSL"
-    cli = ["--suppress-ragged-eofs"]
-    action = "store_true"
     default = True
-    validator = validate_bool
+    cli = ["--suppress-ragged-eofs"]
     desc = """\
     Suppress ragged EOFs (see stdlib ssl module's)
     """
 
 
-class DoHandshakeOnConnect(Setting):
+class DoHandshakeOnConnect(BoolSetting):
     name = "do_handshake_on_connect"
     section = "SSL"
     cli = ["--do-handshake-on-connect"]
-    validator = validate_bool
-    action = "store_true"
-    default = False
     desc = """\
     Whether to perform SSL handshake on socket connect (see stdlib ssl module's)
     """
@@ -2289,13 +2196,10 @@ class PasteGlobalConf(Setting):
         """
 
 
-class StripHeaderSpaces(Setting):
+class StripHeaderSpaces(BoolSetting):
     name = "strip_header_spaces"
     section = "Server Mechanics"
     cli = ["--strip-header-spaces"]
-    validator = validate_bool
-    action = "store_true"
-    default = False
     desc = """\
         Strip spaces present between the header name and the the ``:``.
 
@@ -2308,13 +2212,10 @@ class StripHeaderSpaces(Setting):
         """
 
 
-class PermitUnconventionalHTTPMethod(Setting):
+class PermitUnconventionalHTTPMethod(BoolSetting):
     name = "permit_unconventional_http_method"
     section = "Server Mechanics"
     cli = ["--permit-unconventional-http-method"]
-    validator = validate_bool
-    action = "store_true"
-    default = False
     desc = """\
         Permit HTTP methods not matching conventions, such as IANA registration guidelines
 
@@ -2330,13 +2231,10 @@ class PermitUnconventionalHTTPMethod(Setting):
         """
 
 
-class PermitUnconventionalHTTPVersion(Setting):
+class PermitUnconventionalHTTPVersion(BoolSetting):
     name = "permit_unconventional_http_version"
     section = "Server Mechanics"
     cli = ["--permit-unconventional-http-version"]
-    validator = validate_bool
-    action = "store_true"
-    default = False
     desc = """\
         Permit HTTP version not matching conventions of 2023
 
@@ -2350,13 +2248,10 @@ class PermitUnconventionalHTTPVersion(Setting):
         """
 
 
-class CasefoldHTTPMethod(Setting):
+class CasefoldHTTPMethod(BoolSetting):
     name = "casefold_http_method"
     section = "Server Mechanics"
     cli = ["--casefold-http-method"]
-    validator = validate_bool
-    action = "store_true"
-    default = False
     desc = """\
          Transform received HTTP methods to uppercase
 
@@ -2438,13 +2333,10 @@ class HeaderMap(Setting):
         """
 
 
-class TolerateDangerousFraming(Setting):
+class TolerateDangerousFraming(BoolSetting):
     name = "tolerate_dangerous_framing"
     section = "Server Mechanics"
     cli = ["--tolerate-dangerous-framing"]
-    validator = validate_bool
-    action = "store_true"
-    default = False
     desc = """\
         Process requests with both Transfer-Encoding and Content-Length
 

@@ -28,9 +28,23 @@ except (ModuleNotFoundError, ImportError):
 from gunicorn.errors import AppImportError
 from gunicorn.workers import SUPPORTED_WORKERS
 if sys.platform.startswith("win"):
-    from gunicorn.windows import *  # pylint: disable=wildcard-import,unused-wildcard-import
+    from gunicorn.windows import (
+        close_on_exec,
+        matching_effective_uid_gid,
+        pipe2,
+        resolve_gid,
+        resolve_uid,
+        set_owner_process,
+    )
 else:
-    from gunicorn.unix import *  # pylint: disable=wildcard-import,unused-wildcard-import
+    from gunicorn.unix import (
+        close_on_exec,
+        matching_effective_uid_gid,
+        pipe2,
+        resolve_gid,
+        resolve_uid,
+        set_owner_process,
+    )
 
 import urllib.parse
 
@@ -248,9 +262,10 @@ def close(sock):
 try:
     from os import closerange
 except ImportError:
-    def closerange(fd_low, fd_high):
+    # FIXME python 3.8: (fd_low, hd_high, /)
+    def closerange(__fd_low, __fd_high):
         # Iterate through and close all file descriptors.
-        for fd in range(fd_low, fd_high):
+        for fd in range(__fd_low, __fd_high):
             try:
                 os.close(fd)
             except OSError:  # ERROR, fd wasn't open to begin with (ignored)

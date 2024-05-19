@@ -32,8 +32,6 @@ class Worker(object):
         "ABRT HUP QUIT INT TERM USR1 USR2 WINCH CHLD".split()
     )]
 
-    PIPE = []
-
     def __init__(self, age, ppid, sockets, app, timeout, cfg, log):
         """\
         This is called pre-fork so it shouldn't do anything to the
@@ -105,7 +103,7 @@ class Worker(object):
 
         # Prevent fd inheritance
         for s in self.sockets:
-            util.close_on_exec(s)
+            util.close_on_exec(s.fileno())
         util.close_on_exec(self.tmp.fileno())
 
         self.wait_fds = self.sockets + [self.PIPE[0]]

@@ -48,8 +48,8 @@ def format_settings(app):
 
 
 def fmt_setting(s):
-    if hasattr(s, "default_doc"):
-        val = s.default_doc
+    if hasattr(s, "_default_doc"):
+        val = s._default_doc
     elif callable(s.default):
         val = inspect.getsource(s.default)
         val = "\n".join("    %s" % line for line in val.splitlines())

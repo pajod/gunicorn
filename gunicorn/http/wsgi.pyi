@@ -3,7 +3,7 @@ from collections.abc import Callable, Sequence
 from logging import Logger
 from re import Pattern
 
-from _typeshed import Incomplete
+from _typeshed import Incomplete, OptExcInfo
 from _typeshed.wsgi import StartResponse, WSGIEnvironment
 from typing_extensions import Never
 
@@ -52,7 +52,13 @@ class Response:
     def force_close(self) -> None: ...
     def should_close(self) -> bool: ...
     status_code: int
-    start_response: StartResponse
+    # start_response: StartResponse
+    def start_response(
+        self,
+        status: str,
+        headers: list[tuple[str, str]],
+        exc_info: OptExcInfo | None = None,
+    ) -> Callable[[bytes], Incomplete]: ...
     def process_headers(self, headers: Sequence[tuple[str, str]]) -> None: ...
     def is_chunked(self) -> bool: ...
     def default_headers(self) -> Incomplete: ...

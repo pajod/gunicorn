@@ -1,10 +1,14 @@
+from typing import TYPE_CHECKING
+
 from _typeshed import Incomplete
 
-from gunicorn import util as util
-from gunicorn.config import Config as Config
+from gunicorn import util
 
-PLATFORM: Incomplete
-IS_CYGWIN: Incomplete
+if TYPE_CHECKING:
+    from gunicorn.config import Config
+
+PLATFORM: str
+IS_CYGWIN: bool
 
 class WorkerTmp:
     def __init__(self, cfg: Config) -> None: ...
