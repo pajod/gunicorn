@@ -25,6 +25,7 @@ jobs:
       matrix:
         toxenv: [lint, docs-lint, pycodestyle, format, mypy]
         python-version: [ "3.10" ]
+        os: ["ubuntu-latest"]
         include:
           - os: ubuntu-latest
             python-version: "3.12"
