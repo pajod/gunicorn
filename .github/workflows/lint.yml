@@ -29,7 +29,7 @@ jobs:
         include:
           # this one is used for checking support/docs files
           - os: ubuntu-latest
-            python-version: "3.12"
+            python-version: "3.10"
             toxenv: null
           # these ensure our lint-related tox runs can run on odd platforms
           - os: windows-latest
@@ -53,20 +53,13 @@ jobs:
           python -m pip install tox
       - run: tox -e ${{ matrix.toxenv }}
         if: ${{ matrix.toxenv }}
-      - name: "Lint support files"
-        if: ${{ ! matrix.toxenv }}
-        env:
-          # annoying results for pl_PL and fr_FR.. still the only *obvious* choice
-          LC_ALL: C
-        run: |
-          tail +6 THANKS | sort --ignore-case --check
-          sort --check .gitignore
       - name: "Update docs"
         if: ${{ ! matrix.toxenv }}
         env:
           # annoying results for pl_PL and fr_FR.. still the only *obvious* choice
           LC_ALL: C
         run: |
+          python -m pip install .[dev]
           # this will update docs/source/settings.rst
           make -C docs dummy
           if unclean=$(git status --untracked-files=no --porcelain) && [ -z "$unclean" ]; then
@@ -76,3 +69,11 @@ jobs:
             echo "$unclean"
             exit 2
           fi
+      - name: "Lint support files"
+        if: ${{ ! matrix.toxenv }}
+        env:
+          # annoying results for pl_PL and fr_FR.. still the only *obvious* choice
+          LC_ALL: C
+        run: |
+          tail +6 THANKS | sort --ignore-case --check
+          sort --check .gitignore
