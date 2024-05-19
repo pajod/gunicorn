@@ -27,9 +27,11 @@ jobs:
         python-version: [ "3.10" ]
         os: ["ubuntu-latest"]
         include:
+          # this one is used for checking support/docs files
           - os: ubuntu-latest
             python-version: "3.12"
             toxenv: null
+          # these ensure our lint-related tox runs can run on odd platforms
           - os: windows-latest
             python-version: "3.12"
             toxenv: format
@@ -59,3 +61,18 @@ jobs:
         run: |
           tail +6 THANKS | sort --ignore-case --check
           sort --check .gitignore
+      - name: "Update docs"
+        if: ${{ ! matrix.toxenv }}
+        env:
+          # annoying results for pl_PL and fr_FR.. still the only *obvious* choice
+          LC_ALL: C
+        run: |
+          # this will update docs/source/settings.rst
+          make -C docs dummy
+          if unclean=$(git status --untracked-files=no --porcelain) && [ -z "$unclean" ]; then
+            echo "no uncommitted changes in working tree (as it should be)"
+          else
+            echo "did you forget to run `make -C docs html`?"
+            echo "$unclean"
+            exit 2
+          fi
