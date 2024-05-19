@@ -242,8 +242,9 @@ class SettingMeta(type):
 
         # creating new leaf class, register setting
         parent_attrs = [{k: v for (k, v) in vars(b).items() if not k.startswith("__")} for b in bases[::-1]]
+
         # in later Python versions dict() | dict() is valid, so passing operator.or_ is sufficient
-        def dick(a,b):
+        def dick(a, b):
             c = a.copy()
             c.update(b)
             return c

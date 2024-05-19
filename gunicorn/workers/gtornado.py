@@ -149,7 +149,7 @@ class TornadoWorker(Worker):
                 env['RAW_URI'] = request.path  # FIXME: guessed, not tested
                 self._handle_log(status_code, request, env)
             # FIXME: pylint hates instance patching
-            app._log = new_log.__get__(app, WSGIContainer)
+            app._log = new_log.__get__(app, WSGIContainer)  # pylint: disable=E1120,W0237
 
         # Monkey-patching HTTPConnection.finish to count the
         # number of requests being handled by Tornado. This

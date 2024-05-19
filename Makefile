@@ -18,10 +18,7 @@ style:
 	git ls-files -z "**.pyi" | xargs -0r python3 -m pyupgrade --py310-plus
 	git ls-files -z "**.yaml" "**.yml" | xargs -0r -L 1 python3 -c "import sys,yaml; yaml.safe_load(open(sys.argv[1], 'rb'))"
 	git ls-files "**.toml" | xargs -r -L 1 python3 -c "import sys,tomllib; tomllib.load(open(sys.argv[1], 'rb'))"
-	$(eval difftmp := $(shell mktemp -p /dev/shm))
-	tail +6 THANKS >$(difftmp)
-	tail +6 THANKS | LC_ALL=C sort --ignore-case | diff -wus $(difftmp) - || true
-	rm $(difftmp)
+	{ head -6 THANKS ; tail +6 THANKS | LC_ALL=C sort --unique --ignore-case ; } | sponge THANKS
 	git ls-files -z -- "examples/frameworks/django_project/**/*.py" "tests/test_e2e.py" | xargs -0r python3 -m isort --py=37
 	git ls-files -z -- "examples/frameworks/django_project/**/*.py" "tests/test_e2e.py" | xargs -0r python3 -m black --target-version=py37
 	git ls-files -z -- "examples/frameworks/django_project/**/*.py" "tests/test_e2e.py" | xargs -0r python3 -m pyupgrade --py37-plus

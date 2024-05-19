@@ -76,7 +76,7 @@ def set_owner_process(uid, gid, initgroups=False):
                 initgroups = False
 
         if initgroups:
-            os.initgroups(username, gid)
+            os.initgroups(username, gid)  # pylint: disable=possibly-used-before-assignment
         elif gid != os.getgid():
             os.setgid(gid)
             _drop_supplemental_groups()

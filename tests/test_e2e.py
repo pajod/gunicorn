@@ -23,25 +23,25 @@ APP_BASENAME = "testsyntax"
 APP_APPNAME = "wsgiapp"
 
 TEST_TOLERATES_BAD_BOOT = [
-    "sync",
+    pytest.param("sync"),
+    # pytest.param("expected_failure", marks=pytest.mark.xfail),
     "eventlet",
     "gevent",
     "gevent_wsgi",
     "gevent_pywsgi",
     "tornado",
     "gthread",
-    # pytest.param("expected_failure", marks=pytest.mark.xfail),
 ]
 
 TEST_TOLERATES_BAD_RELOAD = [
-    "sync",
+    pytest.param("sync"),
+    # pytest.param("expected_failure", marks=pytest.mark.xfail),
     "eventlet",
     "gevent",
     "gevent_wsgi",
     "gevent_pywsgi",
     "tornado",
     "gthread",
-    # pytest.param("expected_failure", marks=pytest.mark.xfail),
 ]
 
 

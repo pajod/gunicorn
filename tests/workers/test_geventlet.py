@@ -9,7 +9,7 @@ import sys
 def test_import():
 
     try:
-        import eventlet
+        import eventlet  # type: ignore[import-untyped]
     except AttributeError:
         if (3,13) > sys.version_info >= (3, 12):
             pytest.skip("Ignoring eventlet failures on Python 3.12")

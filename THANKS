@@ -4,6 +4,7 @@ Gunicorn THANKS
 A number of people have contributed to Gunicorn by reporting problems,
 suggesting improvements or submitting changes. Some of these people are:
 
+
 414nch4n <chanfung032@gmail.com>
 Aaron Kavlie <akavlie@gmail.com>
 aartur <asiekielski@soldevelo.com>
@@ -60,6 +61,7 @@ Djoume Salvetti <djoume@freshbooks.com>
 Dmitry Medvinsky <me@dmedvinsky.name>
 Dustin Ingram <di@users.noreply.github.com>
 Ed Morley <edmorley@users.noreply.github.com>
+Emile Fugulin <emilefugulin@hotmail.com>
 Eric Florenzano <floguy@gmail.com>
 Eric Shull <eric@elevenbasetwo.com>
 Eugene Obukhov <irvind25@gmail.com>
@@ -114,7 +116,6 @@ Lars Hansson <romabysen@gmail.com>
 Leonardo Santagada <santagada@gmail.com>
 Levi Gross <levi@levigross.com>
 licunlong <shenxiaogll@163.com>
-Łukasz Kucharski <lkucharski@leon.pl>
 Mahmoud Hashemi <mahmoudrhashemi@gmail.com>
 Malthe Borch <mborch@gmail.com>
 Marc Abramowitz <marc@marc-abramowitz.com>
@@ -187,4 +188,4 @@ WooParadog <guohaochuan@gmail.com>
 Xie Shi <xieshi@douban.com>
 Yue Du <ifduyue@gmail.com>
 zakdances <zakdances@gmail.com>
-Emile Fugulin <emilefugulin@hotmail.com>
+Łukasz Kucharski <lkucharski@leon.pl>

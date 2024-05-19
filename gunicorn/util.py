@@ -191,7 +191,7 @@ if sys.platform.startswith("win"):
             # Other Windows APIs can fail or give incorrect results when
             # dealing with files that are pending deletion.
             L = os.listdir(dirname)
-            if not L if waitall else name in L:
+            if not L if waitall else name in L:  # pylint: disable=possibly-used-before-assignment
                 return
             # Increase the timeout and try again
             time.sleep(timeout)
