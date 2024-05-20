@@ -45,7 +45,7 @@ TEST_TOLERATES_BAD_RELOAD = [
 ]
 
 try:
-    from gevent import monkey as _gevent_is_installed
+    from gevent import monkey as _gevent_is_installed  # type: ignore
 except ImportError:
     for T in (TEST_TOLERATES_BAD_BOOT, TEST_TOLERATES_BAD_RELOAD):
         T.remove("gevent")
