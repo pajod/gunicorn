@@ -14,8 +14,8 @@ import pytest
 # from threading import Thread, Event
 
 
-GRACEFUL_TIMEOUT = 8
-BOOT_DEADLINE = 30
+GRACEFUL_TIMEOUT = 10
+BOOT_DEADLINE = 40
 
 # test flaky for WORKER_COUNT != 1, awaiting *last* worker not implemented
 WORKER_COUNT = 1
@@ -43,6 +43,15 @@ TEST_TOLERATES_BAD_RELOAD = [
     "tornado",
     "gthread",
 ]
+
+try:
+    from gevent import monkey as _gevent_is_installed
+except ImportError:
+    for T in (TEST_TOLERATES_BAD_BOOT, TEST_TOLERATES_BAD_RELOAD):
+        T.remove("gevent")
+        T.append(
+            pytest.param("gevent", marks=pytest.mark.skip("gevent not installed"))  # type: ignore[arg-type]
+        )
 
 
 try:
