@@ -289,7 +289,7 @@ def test_process_request_after_fixing_syntax_error(worker_class):
     # 2. fixup the app by writing to file
     # 3. await reload: the app should begin working soon
 
-    fixed_port = 2048 + secrets.randbelow(1024 * 14)
+    fixed_port = 1024 * 6 + secrets.randbelow(1024 * 9)
     # FIXME: should also test inherited socket (LISTEN_FDS)
     server_bind = "[::1]:%d" % fixed_port
 
@@ -342,8 +342,7 @@ def test_process_request_after_fixing_syntax_error(worker_class):
                 timeout_sec=BOOT_DEADLINE,
                 expect={
                     f"{APP_BASENAME}.py modified",
-                    # unreliable on GitHub CI, skip asserting this line for now
-                    # "Booting worker",
+                    "Booting worker",
                 },
             )
 
@@ -380,7 +379,7 @@ def test_process_shutdown_cleanly_after_inserting_syntax_error(worker_class):
     # 2. now insert fatal error by writing to app
     # 3. await reload, the shutdown gracefully
 
-    fixed_port = 2048 + secrets.randbelow(1024 * 14)
+    fixed_port = 1024 * 6 + secrets.randbelow(1024 * 9)
     # FIXME: should also test inherited socket (LISTEN_FDS)
     server_bind = "[::1]:%d" % fixed_port
 
