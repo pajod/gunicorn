@@ -161,7 +161,7 @@ omit = [
 faulthandler_timeout = 600
 norecursedirs = ["examples", "lib", "local", "src"]
 testpaths = ["tests/"]
-addopts = ["--strict-markers", "--assert=plain"]
+addopts = ["--strict-markers"]
 xfail_strict = true
 
 [tool.setuptools]
