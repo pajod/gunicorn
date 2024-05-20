@@ -58,8 +58,12 @@ try:
 except ImportError:
     for T in (TEST_TOLERATES_BAD_BOOT, TEST_TOLERATES_BAD_RELOAD):
         T.remove("gevent")
+        T.remove("gevent_wsgi")
+        T.remove("gevent_pywsgi")
         T.append(
             pytest.param("gevent", marks=pytest.mark.skip("gevent not installed"))  # type: ignore[arg-type]
+            pytest.param("gevent_wsgi", marks=pytest.mark.skip("gevent not installed"))  # type: ignore[arg-type]
+            pytest.param("gevent_pywsgi", marks=pytest.mark.skip("gevent not installed"))  # type: ignore[arg-type]
         )
 
 
