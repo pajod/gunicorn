@@ -123,8 +123,8 @@ testing = [
     "coverage",
     "pytest>=7.2.0",
     # for workers
-    'gevent; python_version<"3.13"',
-    "eventlet",
+    'gevent; python_version<"3.13"',  # greenlet not yet released for 3.13
+    'eventlet; python_version<"3.13"',  # greenlet not yet released for 3.13
     "tornado>=6.0",
     # for optional features
     # "PasteDeploy>=1.0",
