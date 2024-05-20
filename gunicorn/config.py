@@ -2183,7 +2183,7 @@ class Ciphers(Setting):
     OWASP provides details on user-agent compatibility at each security level.
 
     See the `OpenSSL Cipher List Format Documentation
-    <https://www.openssl.org/docs/manmaster/man1/ciphers.html#CIPHER-LIST-FORMAT>`_
+    <https://www.openssl.org/docs/manmaster/man1/openssl-ciphers.html#CIPHER-LIST-FORMAT>`_
     for details on the format of an OpenSSL cipher list.
     """
 

@@ -43,7 +43,7 @@ If you install the Python package setproctitle_ Gunicorn will set the process
 names to something a bit more meaningful. This will affect the output you see
 in tools like ``ps`` and ``top``. This helps for distinguishing the master
 process as well as between masters when running more than one app on a single
-machine. See the proc_name_ setting for more information.
+machine. See the :ref:`proc-name` setting for more information.
 
 Why is there no HTTP Keep-Alive?
 --------------------------------
@@ -54,8 +54,7 @@ handle unbuffered requests (ie, serving requests directly from the internet)
 you should use one of the async workers.
 
 .. _Hey: https://github.com/rakyll/hey
-.. _setproctitle: https://pypi.python.org/pypi/setproctitle
-.. _proc_name: settings.html#proc-name
+.. _setproctitle: https://pypi.python.org/project/setproctitle
 
 
 Worker Processes
@@ -69,12 +68,12 @@ Read the :ref:`design` page for help on the various worker types.
 What types of workers are there?
 --------------------------------
 
-Check out the configuration docs for worker_class_.
+Check out the configuration docs for :ref:`worker-class`.
 
 How can I figure out the best number of worker processes?
 ---------------------------------------------------------
 
-Here is our recommendation for tuning the `number of workers`_.
+Here is our recommendation for tuning the :ref:`number of workers <how-many-workers>`.
 
 How can I change the number of workers dynamically?
 ---------------------------------------------------
@@ -99,11 +98,9 @@ request. Since only one handler will receive the request, the others will have
 been awakened for no reason, wasting CPU cycles. At this time, Gunicorn does
 not implement any IPC solution for coordinating between worker processes. You
 may experience high load due to this problem when using many workers or
-threads. However `a work has been started
-<https://github.com/benoitc/gunicorn/issues/792>`_ to remove this issue.
+threads. However :issue:`a work has been started <792>` to remove this issue.
 
-.. _worker_class: settings.html#worker-class
-.. _`number of workers`: design.html#how-many-workers
+.. _why-i-don-t-see-any-logs-in-the-console:
 
 Why I don't see any logs in the console?
 ----------------------------------------

@@ -38,6 +38,8 @@ applications are programmed.
 closed after response has been sent (even if you manually add ``Keep-Alive``
 or ``Connection: keep-alive`` header in your application).
 
+.. _async-workers:
+
 Async Workers
 -------------
 
@@ -106,6 +108,8 @@ Some examples of behavior requiring asynchronous workers:
   * Web sockets
   * Comet
 
+.. _how-many-workers:
+
 How Many Workers?
 =================
 
@@ -149,5 +153,5 @@ code in the master process).
 .. _Hey: https://github.com/rakyll/hey
 .. _aiohttp: https://docs.aiohttp.org/en/stable/deployment.html#nginx-gunicorn
 .. _`example`: https://github.com/benoitc/gunicorn/blob/master/examples/frameworks/flaskapp_aiohttp_wsgi.py
-.. _Psycopg: http://initd.org/psycopg/
+.. _Psycopg: https://pypi.org/project/psycopg/
 .. _psycogreen: https://github.com/psycopg/psycogreen/

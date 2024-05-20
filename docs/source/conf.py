@@ -29,6 +29,8 @@ sys.path.append(os.path.join(DOCS_DIR, os.pardir))
 sys.path.insert(0, os.path.join(DOCS_DIR, os.pardir, os.pardir))
 
 extensions = [
+    # useful if there are few duplicare section headings
+    # 'sphinx.ext.autosectionlabel',
     'gunicorn_ext',
 ]
 

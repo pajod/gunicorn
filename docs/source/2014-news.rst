@@ -15,18 +15,18 @@ Changes
 Core
 ++++
 
-- fix :issue:`835`: display correct pid of already running instance
+- fix :pr:`835`: display correct pid of already running instance
 - fix :pr:`833`: fix `PyTest` class in setup.py.
 
 
 Logging
 +++++++
 
-- fix :issue:`838`: statsd logger, send statsd timing metrics in milliseconds
-- fix :issue:`839`: statsd logger, allows for empty log message while pushing
+- fix :pr:`838`: statsd logger, send statsd timing metrics in milliseconds
+- fix :pr:`839`: statsd logger, allows for empty log message while pushing
   metrics and restore worker number in DEBUG logs
-- fix :issue:`850`: add timezone to logging
-- fix :issue:`853`: Respect logger_class setting unless statsd is on
+- fix :pr:`850`: add timezone to logging
+- fix :pr:`853`: Respect logger_class setting unless statsd is on
 
 AioHttp worker
 ++++++++++++++
@@ -44,7 +44,7 @@ Core
 
 - fix :issue:`785`: handle binary type address given to a client socket address
 - fix graceful shutdown. make sure QUIT and TERMS signals are switched everywhere.
-- :issue:`799`: fix support loading config from module
+- :pr:`799`: fix support loading config from module
 - :issue:`805`: fix check for file-like objects
 - fix :issue:`815`: args validation in WSGIApplication.init
 - fix :issue:`787`: check if we load a pyc file or not.
@@ -77,26 +77,26 @@ Async worker
 Logging
 +++++++
 
-- add statsd logging handler fix :issue:`748`
+- add statsd logging handler fix :pr:`748`
 
 
 Paster
 ++++++
 
-- fix :issue:`809`: Set global logging configuration from a Paste config.
+- fix :pr:`809`: Set global logging configuration from a Paste config.
 
 
 Extra
 +++++
 
-- fix RuntimeError in gunicorn.reloader (:issue:`807`)
+- fix RuntimeError in gunicorn.reloader (:pr:`807`)
 
 
 Documentation
 +++++++++++++
 
-- update faq: put a note on how `watch logs in the console
-  <http://docs.gunicorn.org/en/latest/faq.html#why-i-don-t-see-any-logs-in-the-console>`_
+- update faq: put a note on how :ref:`watch logs in the console
+  <why-i-don-t-see-any-logs-in-the-console>`
   since many people asked for it.
 
 
@@ -104,8 +104,8 @@ Documentation
 =================
 
 Gunicorn 19.0 is a major release with new features and fixes. This
-version improve a lot the usage of Gunicorn with python 3 by adding `two
-new workers <http://docs.gunicorn.org/en/latest/design.html#asyncio-workers>`_
+version improve a lot the usage of Gunicorn with python 3 by adding :ref:`two
+new workers <asyncio-workers>`
 to it: `gthread` a fully threaded async worker using futures and `gaiohttp` a
 worker using asyncio.
 

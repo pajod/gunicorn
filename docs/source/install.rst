@@ -28,7 +28,7 @@ Async Workers
 
 You may also want to install Eventlet_ or Gevent_ if you expect that your
 application code may need to pause for extended periods of time during request
-processing. Check out the `design docs`_ for more information on when you'll
+processing. Check out the :doc:`design docs <design>` for more information on when you'll
 want to consider one of the alternate worker types.
 
 ::
@@ -58,7 +58,7 @@ Some Gunicorn options require additional packages. You can use the ``[extra]``
 syntax to install these at the same time as Gunicorn.
 
 Most extra packages are needed for alternate worker types. See the
-`design docs`_ for more information on when you'll want to consider an
+:doc:`design docs <design>` for more information on when you'll want to consider an
 alternate worker type.
 
 * ``gunicorn[eventlet]`` - Eventlet-based greenlets workers
@@ -163,10 +163,9 @@ default 20.0.4 (December 2020) so that you can install it in the usual way::
     $ sudo apt-get install gunicorn
 
 
-.. _`design docs`: design.html
 .. _Eventlet: http://eventlet.net
 .. _Gevent: http://www.gevent.org/
 .. _libevent: http://libevent.org/
 .. _Debian: https://www.debian.org/
 .. _`Debian Backports`: https://backports.debian.org/
-.. _Ubuntu: https://www.ubuntu.com/
+.. _Ubuntu: https://ubuntu.com/
