@@ -21,7 +21,7 @@ lint:
 	$(PY) -m mypy.stubtest -- gunicorn
 	$(PY) -m pylint gunicorn
 	$(PY) -m pycodestyle gunicorn
-	rst-lint --encoding utf-8 docs/source/*.rst docs/README.rst docs/README.rst
+	$(PY) -m restructuredtext_lint.cli --encoding utf-8 docs/source/*.rst docs/README.rst docs/README.rst
 
 style:
 	# stubs do not need to conform to old Python versions

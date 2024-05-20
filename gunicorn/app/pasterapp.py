@@ -6,7 +6,12 @@
 import configparser
 import os
 
-from paste.deploy import loadapp  # type: ignore[import-untyped]
+try:
+    from paste.deploy import loadapp  # type: ignore[import-untyped]
+except ImportError:
+    def loadapp(*args, **kwargs):
+        raise ImportError('You must have the paste.deploy module installed to '
+                          'use the PasteDeploy app loader')
 
 from gunicorn.app.wsgiapp import WSGIApplication
 from gunicorn.config import get_default_config_file
