@@ -24,6 +24,7 @@ details.
 
 ### Notable changes tested in this repository
 
+ * [PR #3214: document server hooks](https://github.com/benoitc/gunicorn/pull/3214)
  * [PR #3127: refactor socket wrappers](https://github.com/benoitc/gunicorn/pull/3127)
  * [PR #3134: CI test older dependencies](https://github.com/benoitc/gunicorn/pull/3134)
  * [PR #3192: fix 22.0 regression: `SCRIPT_NAME` forbidden](https://github.com/benoitc/gunicorn/pull/3192)
