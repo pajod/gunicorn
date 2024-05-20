@@ -62,7 +62,11 @@ except ImportError:
         T.remove("gevent_pywsgi")
         T.append(
             pytest.param("gevent", marks=pytest.mark.skip("gevent not installed"))  # type: ignore[arg-type]
+        )
+        T.append(
             pytest.param("gevent_wsgi", marks=pytest.mark.skip("gevent not installed"))  # type: ignore[arg-type]
+        )
+        T.append(
             pytest.param("gevent_pywsgi", marks=pytest.mark.skip("gevent not installed"))  # type: ignore[arg-type]
         )
 
