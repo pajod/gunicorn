@@ -262,7 +262,7 @@ class Server:
                 break
             # not seen expected output? wait for % of original timeout
             # .. maybe we will still see better error context that way
-            if seen_keyword > (0.50 * timeout_sec * poll_per_second):
+            if seen_keyword > (0.75 * timeout_sec * poll_per_second):
                 break
             time.sleep(1.0 / poll_per_second)
         # assert buf[abs(key - 1)] == ""
