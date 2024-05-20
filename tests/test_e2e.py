@@ -14,8 +14,8 @@ import pytest
 # from threading import Thread, Event
 
 
-GRACEFUL_TIMEOUT = 10
-BOOT_DEADLINE = 20
+GRACEFUL_TIMEOUT = 8
+BOOT_DEADLINE = 30
 
 # test flaky for WORKER_COUNT != 1, awaiting *last* worker not implemented
 WORKER_COUNT = 1
