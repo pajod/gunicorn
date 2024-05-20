@@ -128,7 +128,7 @@ testing = [
     "tornado>=6.0",
     # for optional features
     # "PasteDeploy>=1.0",
-    "inotify, sys_platform=='linux'",
+    "inotify; sys_platform=='linux'",
     "setproctitle",
 ]
 dev = [
