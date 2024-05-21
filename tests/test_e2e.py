@@ -182,6 +182,7 @@ class Server:
             "--log-level=debug",
             "--worker-class=%s" % worker_class,
             "--workers=%d" % WORKER_COUNT,
+            "--buf-read-size=77",
             "--enable-stdio-inheritance",
             "--access-logfile=-",
             "--disable-redirect-access-to-syslog",

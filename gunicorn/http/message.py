@@ -212,7 +212,7 @@ class Message(object):
                 # either processing or rejecting is permitted in RFC 9112 Section 6.1
                 if not self.cfg.tolerate_dangerous_framing:
                     raise InvalidHeader("CONTENT-LENGTH", req=self)
-            self.body = Body(ChunkedReader(self, self.unreader))
+            self.body = Body(self.cfg, ChunkedReader(self, self.unreader))
         elif content_length is not None:
             try:
                 if str(content_length).isnumeric():
@@ -225,9 +225,9 @@ class Message(object):
             if content_length < 0:
                 raise InvalidHeader("CONTENT-LENGTH", req=self)
 
-            self.body = Body(LengthReader(self.unreader, content_length))
+            self.body = Body(self.cfg, LengthReader(self.unreader, content_length))
         else:
-            self.body = Body(EOFReader(self.unreader))
+            self.body = Body(self.cfg, EOFReader(self.unreader))
 
     def should_close(self):
         if self.must_close:
@@ -452,4 +452,4 @@ class Request(Message):
     def set_body_reader(self):
         super().set_body_reader()
         if isinstance(self.body.reader, EOFReader):
-            self.body = Body(LengthReader(self.unreader, 0))
+            self.body = Body(self.cfg, LengthReader(self.unreader, 0))

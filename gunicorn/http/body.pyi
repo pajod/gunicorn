@@ -1,5 +1,6 @@
 from collections.abc import Generator, Iterator
 from io import BytesIO
+from typing import TYPE_CHECKING
 
 from _typeshed import Incomplete
 from typing_extensions import Protocol, Self
@@ -7,6 +8,9 @@ from typing_extensions import Protocol, Self
 from gunicorn.http.errors import ChunkMissingTerminator, InvalidChunkSize, NoMoreData
 from gunicorn.http.message import Message
 from gunicorn.http.unreader import Unreader
+
+if TYPE_CHECKING:
+    from gunicorn.config import Config
 
 class _Read(Protocol):
     def read(self, size: int) -> bytes: ...
@@ -40,7 +44,7 @@ class EOFReader:
 class Body:
     reader: _Read
     buf: BytesIO
-    def __init__(self, reader: _Read) -> None: ...
+    def __init__(self, cfg: Config, reader: _Read) -> None: ...
     def __iter__(self) -> Self: ...
     def __next__(self) -> Iterator[bytes]: ...
     next = __next__
