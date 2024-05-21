@@ -93,6 +93,8 @@ else:
     logging.basicConfig()
     logger = logging.getLogger(__name__)
 
+import syntax_ok
+
 def wsgiapp(environ_, start_response):
     # print("stdout from app", file=sys.stdout)
     print("stderr from app", file=sys.stderr)
@@ -107,11 +109,16 @@ def wsgiapp(environ_, start_response):
     return iter([body])
 """
 
-PY_BAD_CONFIG = """
+PY_VALID_CONFIG = """
 def post_fork(a_, b_):
     pass  # import syntax_error
 def post_worker_init(_):
     pass  # raise KeyboardInterrupt
+"""
+
+PY_GOOD_IMPORT = """
+def good_method():
+    pass
 """
 
 PY_BAD_IMPORT = """
@@ -136,6 +143,7 @@ else:
 
 # os.kill(os.getppid(), signal.SIGTERM)
 # sys.exit(3)
+import syntax_ok
 import syntax_error
 
 def wsgiapp(environ_, start_response_):
@@ -180,19 +188,20 @@ class Server:
             "--graceful-timeout=%d" % (GRACEFUL_TIMEOUT,),
             "--on-fatal={}".format("world-readable" if public_traceback else "quiet"),
             # "--reload",
-            "--reload-extra=%s" % self.py_path,
+            # sandwich the one we care for: verify multiple instances of --reload-extra
+            "--reload-extra",
+            "{}".format(self.temp_path / "syntax_ok.py"),
+            f"{self.py_path}",
+            "{}".format(self.temp_path / "syntax_ok.py"),
             # FIXME: not utilizing inotify reduces test coverage
             "--reload-engine=poll",
             "--bind=%s" % server_bind,
             "--reuse-port",
+            "--",
             f"{APP_BASENAME}:{APP_APPNAME}",
         ]
 
     def write_bad(self):
-        with open(self.conf_path, "w+") as f:
-            f.write(PY_BAD_CONFIG)
-        with open(self.temp_path / "syntax_error.py", "w+") as f:
-            f.write(PY_BAD_IMPORT)
         with open(self.py_path, "w+") as f:
             f.write(PY_BAD)
 
@@ -200,7 +209,16 @@ class Server:
         with open(self.py_path, "w+") as f:
             f.write(PY_OK)
 
+    def _write_support(self):
+        with open(self.conf_path, "w+") as f:
+            f.write(PY_VALID_CONFIG)
+        with open(self.temp_path / "syntax_error.py", "w+") as f:
+            f.write(PY_BAD_IMPORT)
+        with open(self.temp_path / "syntax_ok.py", "w+") as f:
+            f.write(PY_GOOD_IMPORT)
+
     def __enter__(self):
+        self._write_support()
         self._write_initial()
         self.run()
         return self

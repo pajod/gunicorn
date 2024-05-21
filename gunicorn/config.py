@@ -10,6 +10,7 @@ import argparse
 import copy
 import inspect
 import ipaddress
+import itertools
 import os
 import re
 import shlex
@@ -949,17 +950,26 @@ class ReloadExtraFiles(Setting):
     section = "Debugging"
     cli = ["--reload-extra-file"]
     meta = "FILES"
-    validator = validate_list_of_existing_files
     default = []
+    nargs = '+'
     desc = """\
         Reload when these files appear modified. Can be used either on its own or to extend
         the :ref:`reload` option to also watch and reload on additional files
         (e.g., templates, configurations, specifications, etc.).
 
-        Behaviour changed in 22.1.0: No longer implicitly depends on :ref:`reload` enabled.
-
         .. versionadded:: 19.8
+        .. versionchanged:: 22.1.0
+           No longer implicitly depends on :ref:`reload` enabled.
+        .. versionchanged:: 22.0
+           It is now possible to pass multiple arguments to each instance of the flag.
+           Hint: if passed last, you may need to separate options and arguments using double dash:
+           ``gunicon --reload-extra-file file1 file2 -- example:wsgiapp``
         """
+
+    # Once Python 3.8 is required, the `extend` makes this overload unnecessary
+    def validator(val):
+        flat = list(itertools.chain.from_iterable(val))
+        return validate_list_of_existing_files(flat)
 
 
 class Spew(BoolSetting):
