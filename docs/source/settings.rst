@@ -210,7 +210,7 @@ H            protocol
 s            status
 B            response length
 b            response length or ``'-'`` (CLF format)
-f            referer
+f            referrer (note: header is ``referer``)
 a            user agent
 T            request time in seconds
 M            request time in milliseconds
@@ -314,7 +314,7 @@ file format.
 
 The log config dictionary to use, using the standard Python
 logging module's dictionary configuration format. This option
-takes precedence over the :ref:`logconfig` and :ref:`logConfigJson` options,
+takes precedence over the :ref:`logconfig` and :ref:`logconfig-json` options,
 which uses the older file configuration format and JSON
 respectively.
 
@@ -569,7 +569,7 @@ Whether client certificate is required (see stdlib ssl module's)
 ===========  ===========================
 --cert-reqs      Description
 ===========  ===========================
-`0`          no client veirifcation
+`0`          no client verification
 `1`          ssl.CERT_OPTIONAL
 `2`          ssl.CERT_REQUIRED
 ===========  ===========================
