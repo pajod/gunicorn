@@ -15,6 +15,7 @@ client = QdrantClient(url="https://test.cloud.qdrant.io.invalid:6333", api_key="
 
 def app(environ_, start_response):
     info = "stderr from app platform=%r %r user=%r:%r:%r pid=%r" % (sys.platform, os.uname(), os.getuid(), os.getgid(), os.getgroups(), os.getpid())
+    print("stdout from app", file=sys.stdout)
     print(info, file=sys.stderr)
     # needed for Python <= 3.8
     sys.stderr.flush()

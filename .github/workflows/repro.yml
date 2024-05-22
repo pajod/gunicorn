@@ -44,5 +44,15 @@ jobs:
           python -m pip install .
       - run: |
           gunicorn -w 2 -b [::1]:8001 repro-3213:app --enable-stdio-inheritance &
-          curl http://[::1]:8001/
+          sleep 3
+          curl http://[::1]:8001/get/1
+          curl http://[::1]:8001/get/2
+          curl http://[::1]:8001/get/3
+          killall gunicorn
+      - run: |
+          gunicorn --worker-class=gthread -w 2 -b [::1]:8001 repro-3213:app --enable-stdio-inheritance &
+          sleep 3
+          curl http://[::1]:8001/get/1
+          curl http://[::1]:8001/get/2
+          curl http://[::1]:8001/get/3
           killall gunicorn
