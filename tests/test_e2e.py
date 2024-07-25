@@ -4,8 +4,14 @@ import signal
 import subprocess
 import sys
 import time
+import importlib
+from typing import TYPE_CHECKING
 from pathlib import Path
 from tempfile import TemporaryDirectory
+
+if TYPE_CHECKING:
+    from typing import NamedTuple, Self, Any
+    import http.client
 
 import pytest
 
@@ -20,7 +26,7 @@ BOOT_DEADLINE = 40
 # test flaky for WORKER_COUNT != 1, awaiting *last* worker not implemented
 WORKER_COUNT = 1
 APP_BASENAME = "testsyntax"
-APP_APPNAME = "wsgiapp"
+APP_APPNAME = "myapp"
 
 TEST_TOLERATES_BAD_BOOT = [
     pytest.param("sync"),
@@ -31,7 +37,9 @@ TEST_TOLERATES_BAD_BOOT = [
     "gevent_pywsgi",
     "tornado",
     "gthread",
-]
+    #"aiohttp.GunicornWebWorker",
+    #"aiohttp.GunicornUVLoopWebWorker",
+]  # type: list[str|NamedTuple]
 
 TEST_TOLERATES_BAD_RELOAD = [
     pytest.param("sync"),
@@ -42,43 +50,40 @@ TEST_TOLERATES_BAD_RELOAD = [
     "gevent_pywsgi",
     "tornado",
     "gthread",
-]
+    "aiohttp.GunicornWebWorker",
+    "aiohttp.GunicornUVLoopWebWorker",
+]  # type: list[str|NamedTuple]
 
-try:
-    import eventlet as _eventlet_is_installed  # type: ignore
-except ImportError:
-    for T in (TEST_TOLERATES_BAD_BOOT, TEST_TOLERATES_BAD_RELOAD):
-        T.remove("eventlet")
-        T.append(
-            pytest.param("eventlet", marks=pytest.mark.skip("eventlet not installed"))  # type: ignore[arg-type]
-        )
+WORKER_DEPENDS = {
+    "aiohttp.GunicornWebWorker": ["aiohttp"],
+    "aiohttp.GunicornUVLoopWorker": ["aiohttp", "uvloop"],
+    "uvicorn.workers.UvicornWorker": ["uvicorn"],  # deprecated
+    "uvicorn.workers.UvicornH11Worker": ["uvicorn"],  # deprecated
+    "uvicorn_worker.UvicornWorker": ["uvicorn_worker"],
+    "uvicorn_worker.UvicornH11Worker": ["uvicorn_worker"],
+    "eventlet": ["eventlet"],
+    "gevent": ["gevent"],
+    "gevent_wsgi": ["gevent"],
+    "gevent_pywsgi": ["gevent"],
+    "tornado": ["tornado"],
+}
+NOT_INSTALLED = set()  # type: set[str]
 
-try:
-    from gevent import monkey as _gevent_is_installed  # type: ignore
-except ImportError:
-    for T in (TEST_TOLERATES_BAD_BOOT, TEST_TOLERATES_BAD_RELOAD):
-        T.remove("gevent")
-        T.remove("gevent_wsgi")
-        T.remove("gevent_pywsgi")
-        T.append(
-            pytest.param("gevent", marks=pytest.mark.skip("gevent not installed"))  # type: ignore[arg-type]
-        )
-        T.append(
-            pytest.param("gevent_wsgi", marks=pytest.mark.skip("gevent not installed"))  # type: ignore[arg-type]
-        )
-        T.append(
-            pytest.param("gevent_pywsgi", marks=pytest.mark.skip("gevent not installed"))  # type: ignore[arg-type]
-        )
+for dependency_list in WORKER_DEPENDS.values():
+    for dependency in dependency_list:
+        try:
+            importlib.import_module(dependency)
+        except ImportError:
+            NOT_INSTALLED.add(dependency)
 
-
-try:
-    from tornado import options as _tornado_is_installed
-except ImportError:
-    for T in (TEST_TOLERATES_BAD_BOOT, TEST_TOLERATES_BAD_RELOAD):
-        T.remove("tornado")
-        T.append(
-            pytest.param("tornado", marks=pytest.mark.skip("tornado not installed"))  # type: ignore[arg-type]
-        )
+for worker_name, worker_needs in WORKER_DEPENDS.items():
+    missing = list(dependency in NOT_INSTALLED for dependency in worker_needs)
+    if missing:
+        for T in (TEST_TOLERATES_BAD_BOOT, TEST_TOLERATES_BAD_RELOAD):
+            if worker_name not in T: continue
+            T.remove(worker_name)
+            skipped_worker = pytest.param(worker_name, marks=pytest.mark.skip("%s not installed" % (missing[0])))
+            T.append(skipped_worker)
 
 
 PY_OK = """
@@ -95,7 +100,7 @@ else:
 
 import syntax_ok
 
-def wsgiapp(environ_, start_response):
+def myapp(environ_, start_response):
     # print("stdout from app", file=sys.stdout)
     print("stderr from app", file=sys.stderr)
     # needed for Python <= 3.8
@@ -109,11 +114,35 @@ def wsgiapp(environ_, start_response):
     return iter([body])
 """
 
+PY_OK_AIOHTTP = """
+import sys
+import logging
+
+if sys.version_info >= (3, 8):
+    logging.basicConfig(force=True)
+    logger = logging.getLogger(__name__)
+    logger.info("logger has been reset")
+else:
+    logging.basicConfig()
+    logger = logging.getLogger(__name__)
+
+import syntax_ok
+
+from aiohttp import web
+
+async def index(req_):
+    print("stderr from app", file=sys.stderr)
+    # needed for Python <= 3.8
+    sys.stderr.flush()
+    return web.Response(text="response body from app")
+
+myapp = web.Application()
+myapp.router.add_get("/", index)
+"""
+
 PY_VALID_CONFIG = """
-def post_fork(a_, b_):
-    pass  # import syntax_error
-def post_worker_init(_):
-    pass  # raise KeyboardInterrupt
+def post_fork(a_, b_): pass
+def post_worker_init(_): pass
 """
 
 PY_GOOD_IMPORT = """
@@ -121,6 +150,10 @@ def good_method():
     pass
 """
 
+# some interesting alternatives to SyntaxError:
+# * os.kill(os.getppid(), signal.SIGTERM)
+# * sys.exit(3)
+# * raise KeyboardInterrupt
 PY_BAD_IMPORT = """
 def bad_method():
     syntax_error:
@@ -130,8 +163,24 @@ PY_BAD = """
 import sys
 import logging
 
-import signal
-import os
+if sys.version_info >= (3, 8):
+    logging.basicConfig(force=True)
+    logger = logging.getLogger(__name__)
+    logger.info("logger has been reset")
+else:
+    logger = logging.getLogger(__name__)
+    logging.basicConfig()
+
+import syntax_ok
+import syntax_error
+
+def myapp(environ_, start_response_):
+    raise RuntimeError("The SyntaxError should raise")
+"""
+
+PY_BAD_AIOHTTP = """
+import sys
+import logging
 
 if sys.version_info >= (3, 8):
     logging.basicConfig(force=True)
@@ -141,13 +190,15 @@ else:
     logger = logging.getLogger(__name__)
     logging.basicConfig()
 
-# os.kill(os.getppid(), signal.SIGTERM)
-# sys.exit(3)
 import syntax_ok
 import syntax_error
 
-def wsgiapp(environ_, start_response_):
+from aiohttp import web
+
+async def index(req_):
     raise RuntimeError("The SyntaxError should raise")
+myapp = web.Application()
+myapp.router.add_get("/", index)
 """
 
 
@@ -162,9 +213,10 @@ class Server:
         use_config=False,
         public_traceback=True,
     ):
+        # type: (Path, str, str, bool, bool, bool) -> None
         # super().__init__(*args, **kwargs)
         # self.launched = Event()
-        self.p = None
+        self.p = None  # type: subprocess.Popen[bytes] | None
         assert isinstance(temp_path, Path)
         self.temp_path = temp_path
         self.py_path = (temp_path / ("%s.py" % APP_BASENAME)).absolute()
@@ -173,6 +225,11 @@ class Server:
             if use_config
             else Path(os.devnull)
         )
+        self._PY_OK = PY_OK
+        self._PY_BAD = PY_BAD
+        if worker_class.startswith("aiohttp"):
+            self._PY_OK = PY_OK_AIOHTTP
+            self._PY_BAD = PY_BAD_AIOHTTP
         self._write_initial = self.write_ok if start_valid else self.write_bad
         self._argv = [
             sys.executable,
@@ -203,14 +260,17 @@ class Server:
         ]
 
     def write_bad(self):
+        # type: () -> None
         with open(self.py_path, "w+") as f:
-            f.write(PY_BAD)
+            f.write(self._PY_BAD)
 
     def write_ok(self):
+        # type: () -> None
         with open(self.py_path, "w+") as f:
-            f.write(PY_OK)
+            f.write(self._PY_OK)
 
     def _write_support(self):
+        # type: () -> None
         with open(self.conf_path, "w+") as f:
             f.write(PY_VALID_CONFIG)
         with open(self.temp_path / "syntax_error.py", "w+") as f:
@@ -219,12 +279,14 @@ class Server:
             f.write(PY_GOOD_IMPORT)
 
     def __enter__(self):
+        # type: () -> Self
         self._write_support()
         self._write_initial()
         self.run()
         return self
 
     def __exit__(self, *exc):
+        # type: (*Any) -> None
         if self.p is None:
             return
         self.p.send_signal(signal.SIGKILL)
@@ -234,6 +296,7 @@ class Server:
         assert ret == 0, (ret, stdout, stderr)
 
     def run(self):
+        # type: () -> None
         self.p = subprocess.Popen(
             self._argv,
             bufsize=0,  # allow read to return short
@@ -244,31 +307,40 @@ class Server:
             stderr=subprocess.PIPE,
             # creationflags=subprocess.CREATE_NEW_PROCESS_GROUP,
         )
-
+        assert self.p.stdout is not None  # this helps static type checkers
+        assert self.p.stderr is not None  # this helps static type checkers
         os.set_blocking(self.p.stdout.fileno(), False)
         os.set_blocking(self.p.stderr.fileno(), False)
         # self.launched.set()
 
-    def graceful_quit(self, expect=()):
+    def graceful_quit(self, expect=None):
+        # type: (set[str]|None) -> str
+        if self.p is None:
+            raise RuntimeError("called graceful_quit() when not running")
         self.p.send_signal(signal.SIGTERM)
         # self.p.kill()
         stdout, stderr = self.p.communicate(timeout=2 + GRACEFUL_TIMEOUT)
         assert stdout == b""
-        ret = self.p.poll()  # will return None if running
-        assert ret == 0, (ret, stdout, stderr)
+        exitcode = self.p.poll()  # will return None if running
+        assert exitcode == 0, (exitcode, stdout, stderr)
         self.p = None
         ret = stderr.decode("utf-8", "surrogateescape")
-        for keyword in expect:
+        for keyword in (expect or ()):
             assert keyword in ret, (keyword, ret)
         return ret
 
-    def read_stdio(self, *, key, timeout_sec, wait_for_keyword, expect=()):
+    def read_stdio(self, *, key, timeout_sec, wait_for_keyword, expect=None):
+        # type: (int, int, str, set[str]|None) -> str
         # try:
         #    stdout, stderr = self.p.communicate(timeout=timeout)
         # except subprocess.TimeoutExpired:
         buf = ["", ""]
         seen_keyword = 0
+        unseen_keywords = list(expect or [])
         poll_per_second = 20
+        assert self.p is not None  # this helps static type checkers
+        assert self.p.stdout is not None  # this helps static type checkers
+        assert self.p.stderr is not None  # this helps static type checkers
         for _ in range(timeout_sec * poll_per_second):
             for fd, file in enumerate([self.p.stdout, self.p.stderr]):
                 read = file.read(64 * 1024)
@@ -276,12 +348,12 @@ class Server:
                     buf[fd] += read.decode("utf-8", "surrogateescape")
             if seen_keyword or wait_for_keyword in buf[key]:
                 seen_keyword += 1
-            for additional_keyword in tuple(expect):
+            for additional_keyword in tuple(unseen_keywords):
                 for somewhere in buf:
                     if additional_keyword in somewhere:
-                        expect.remove(additional_keyword)
+                        unseen_keywords.remove(additional_keyword)
             # gathered all the context we wanted
-            if seen_keyword and not expect:
+            if seen_keyword and not unseen_keywords:
                 break
             # not seen expected output? wait for % of original timeout
             # .. maybe we will still see better error context that way
@@ -290,15 +362,17 @@ class Server:
             time.sleep(1.0 / poll_per_second)
         # assert buf[abs(key - 1)] == ""
         assert wait_for_keyword in buf[key], (wait_for_keyword, *buf)
-        assert not expect, (expect, *buf)
+        assert not unseen_keywords, (unseen_keywords, *buf)
         return buf[key]
 
 
 class Client:
     def __init__(self, host_port):
+        # type: (str) -> None
         self._host_port = host_port
 
     def run(self):
+        # type: () -> http.client.HTTPResponse
         import http.client
 
         conn = http.client.HTTPConnection(self._host_port, timeout=2)
@@ -308,6 +382,8 @@ class Client:
 
 @pytest.mark.parametrize("worker_class", TEST_TOLERATES_BAD_BOOT)
 def test_process_request_after_fixing_syntax_error(worker_class):
+    # type: (str) -> None
+
     # 1. start up the server with invalid app
     # 2. fixup the app by writing to file
     # 3. await reload: the app should begin working soon
@@ -374,7 +450,7 @@ def test_process_request_after_fixing_syntax_error(worker_class):
             assert response.status == 200, (response.status, response.reason)
             assert response.reason == "OK", response.reason
             body = response.read(64 * 1024).decode("utf-8", "surrogateescape")
-            assert "response body from app" == body
+            assert "response body from app" == body, (body, )
 
             _debug_log = server.read_stdio(
                 key=ERR,
@@ -398,6 +474,8 @@ def test_process_request_after_fixing_syntax_error(worker_class):
 
 @pytest.mark.parametrize("worker_class", TEST_TOLERATES_BAD_RELOAD)
 def test_process_shutdown_cleanly_after_inserting_syntax_error(worker_class):
+    # type: (str) -> None
+
     # 1. start with valid application
     # 2. now insert fatal error by writing to app
     # 3. await reload, the shutdown gracefully
@@ -432,7 +510,7 @@ def test_process_shutdown_cleanly_after_inserting_syntax_error(worker_class):
             assert response.status == 200, (response.status, response.reason)
             assert response.reason == "OK", response.reason
             body = response.read(64 * 1024).decode("utf-8", "surrogateescape")
-            assert "response body from app" == body
+            assert "response body from app" == body, (body, )
 
             _debug_log = server.read_stdio(
                 key=ERR,

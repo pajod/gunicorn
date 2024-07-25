@@ -2,7 +2,9 @@ from _typeshed import Incomplete
 
 from gunicorn.http.message import Message
 
-class ParseException(Exception): ...
+class ParseException(Exception):
+    code: int
+    reason: str
 
 class NoMoreData(IOError):
     buf: Incomplete
@@ -13,9 +15,12 @@ class ConfigurationProblem(ParseException):
     code: int
     def __init__(self, info: str) -> None: ...
 
+class ExpectationFailed(ParseException):
+    expect: str
+    def __init__(self, expect: str) -> None: ...
+
 class InvalidRequestLine(ParseException):
     req: str
-    code: int
     def __init__(self, req: str) -> None: ...
 
 class InvalidRequestMethod(ParseException):
@@ -58,12 +63,10 @@ class LimitRequestHeaders(ParseException):
 
 class InvalidProxyLine(ParseException):
     line: str
-    code: int
     def __init__(self, line: str) -> None: ...
 
 class ForbiddenProxyRequest(ParseException):
     host: str
-    code: int
     def __init__(self, host: str) -> None: ...
 
 class InvalidSchemeHeaders(ParseException): ...

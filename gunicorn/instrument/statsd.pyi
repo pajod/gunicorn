@@ -1,6 +1,6 @@
 import socket
 from collections.abc import Mapping
-from datetime import datetime
+from datetime import timedelta
 from typing import Any, Literal
 
 from _typeshed import Incomplete
@@ -34,7 +34,7 @@ class Statsd(Logger):
         resp: Response,
         req: Message,
         environ: Mapping[str, str],
-        request_time: datetime,
+        request_time: timedelta,
     ) -> None: ...
     def gauge(self, name: str, value: int) -> None: ...
     def increment(self, name: str, value: int, sampling_rate: float = ...) -> None: ...

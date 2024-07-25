@@ -1,6 +1,6 @@
 import socket
 from collections.abc import Mapping
-from datetime import datetime
+from datetime import timedelta
 from logging import Logger as _Logger
 from logging.config import _DictConfigArgs
 from threading import Lock
@@ -52,14 +52,14 @@ class Logger:
         resp: Response,
         req: Message,
         environ: Mapping[str, str],
-        request_time: datetime,
+        request_time: timedelta,
     ) -> Incomplete: ...
     def access(
         self,
         resp: Response,
         req: Message,
         environ: Mapping[str, str],
-        request_time: datetime,
+        request_time: timedelta,
     ) -> None: ...
     def now(self) -> str: ...
     def reopen_files(self) -> None: ...

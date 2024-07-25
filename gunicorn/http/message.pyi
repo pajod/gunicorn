@@ -30,6 +30,7 @@ RFC9110_5_6_2_TOKEN_SPECIALS: str
 TOKEN_RE: Pattern[str]
 METHOD_BADCHAR_RE: Pattern[str]
 VERSION_RE: Pattern[str]
+RFC9110_5_5_INVALID_AND_DANGEROUS: Pattern[str]
 
 _t_peer: TypeAlias = tuple[str, int] | str
 
