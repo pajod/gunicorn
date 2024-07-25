@@ -1,0 +1,9 @@
+POST /one_chunks_mult_zero_size HTTP/1.1\r\n
+Transfer-Encoding: chunked\r\n
+\r\n
+000\r\n
+\r\n
+GET /second HTTP/1.1\r\n
+\r\n
+GET /third HTTP/1.1\r\n
+\r\n
