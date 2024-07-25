@@ -2238,6 +2238,20 @@ class PasteGlobalConf(Setting):
         """
 
 
+class RefuseObsoleteFolding(BoolSetting):
+    name = "refuse_obsolete_folding"
+    section = "Server Mechanics"
+    cli = ["--refuse-obsolete-folding"]
+    desc = """\
+        Refuse requests employing obsolete HTTP line folding mechanism
+
+        The mechanism was deprecated by rfc7230 Section 3.2.4.
+
+        Safe to enable if you only ever want to server recently developed HTTP clients.
+
+        .. versionadded:: 22.0.1
+        """
+
 class StripHeaderSpaces(BoolSetting):
     name = "strip_header_spaces"
     section = "Server Mechanics"

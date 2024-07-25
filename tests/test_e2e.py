@@ -28,6 +28,31 @@ WORKER_COUNT = 1
 APP_BASENAME = "testsyntax"
 APP_APPNAME = "myapp"
 
+TEST_SIMPLE = [
+    pytest.param("sync"),
+    "eventlet",
+    "gevent",
+    "gevent_wsgi",
+    "gevent_pywsgi",
+    "tornado",
+    "gthread",
+    "aiohttp.GunicornWebWorker",
+    "aiohttp.GunicornUVLoopWebWorker",
+]  # type: list[str|NamedTuple]
+
+TEST_TOLERATES_MAX_REQUESTS = [
+    pytest.param("sync"),
+    # pytest.param("expected_failure", marks=pytest.mark.xfail),
+    "eventlet",
+    "gevent",
+    "gevent_wsgi",
+    "gevent_pywsgi",
+    "tornado",
+    "gthread",
+    # "aiohttp.GunicornWebWorker",
+    # "aiohttp.GunicornUVLoopWebWorker",
+]  # type: list[str|NamedTuple]
+
 TEST_TOLERATES_BAD_BOOT = [
     pytest.param("sync"),
     # pytest.param("expected_failure", marks=pytest.mark.xfail),
@@ -50,13 +75,13 @@ TEST_TOLERATES_BAD_RELOAD = [
     "gevent_pywsgi",
     "tornado",
     "gthread",
-    "aiohttp.GunicornWebWorker",
-    "aiohttp.GunicornUVLoopWebWorker",
+    # "aiohttp.GunicornWebWorker",
+    # "aiohttp.GunicornUVLoopWebWorker",
 ]  # type: list[str|NamedTuple]
 
 WORKER_DEPENDS = {
     "aiohttp.GunicornWebWorker": ["aiohttp"],
-    "aiohttp.GunicornUVLoopWorker": ["aiohttp", "uvloop"],
+    "aiohttp.GunicornUVLoopWebWorker": ["aiohttp", "uvloop"],
     "uvicorn.workers.UvicornWorker": ["uvicorn"],  # deprecated
     "uvicorn.workers.UvicornH11Worker": ["uvicorn"],  # deprecated
     "uvicorn_worker.UvicornWorker": ["uvicorn_worker"],
@@ -67,19 +92,25 @@ WORKER_DEPENDS = {
     "gevent_pywsgi": ["gevent"],
     "tornado": ["tornado"],
 }
-NOT_INSTALLED = set()  # type: set[str]
+DEP_WANTED = set(sum(WORKER_DEPENDS.values(), start=[]))  # type: set[str]
+DEP_INSTALLED = set()  # type: set[str]
 
-for dependency_list in WORKER_DEPENDS.values():
-    for dependency in dependency_list:
-        try:
-            importlib.import_module(dependency)
-        except ImportError:
-            NOT_INSTALLED.add(dependency)
+for dependency in DEP_WANTED:
+    try:
+        importlib.import_module(dependency)
+        DEP_INSTALLED.add(dependency)
+    except ImportError:
+        pass
 
 for worker_name, worker_needs in WORKER_DEPENDS.items():
-    missing = list(dependency in NOT_INSTALLED for dependency in worker_needs)
+    missing = list(pkg for pkg in worker_needs if pkg not in DEP_INSTALLED)
     if missing:
-        for T in (TEST_TOLERATES_BAD_BOOT, TEST_TOLERATES_BAD_RELOAD):
+        for T in (
+            TEST_TOLERATES_BAD_BOOT,
+            TEST_TOLERATES_BAD_RELOAD,
+            TEST_TOLERATES_MAX_REQUESTS,
+            TEST_SIMPLE,
+        ):
             if worker_name not in T:
                 continue
             T.remove(worker_name)
@@ -87,7 +118,6 @@ for worker_name, worker_needs in WORKER_DEPENDS.items():
                 worker_name, marks=pytest.mark.skip("%s not installed" % (missing[0]))
             )
             T.append(skipped_worker)
-
 
 PY_OK = """
 import sys
@@ -103,9 +133,9 @@ else:
 
 import syntax_ok
 
-def myapp(environ_, start_response):
+def myapp(environ, start_response):
     # print("stdout from app", file=sys.stdout)
-    print("stderr from app", file=sys.stderr)
+    print("stderr from app: C-L=%s" % (environ.get("CONTENT_LENGTH", "-")), file=sys.stderr)
     # needed for Python <= 3.8
     sys.stderr.flush()
     body = b"response body from app"
@@ -340,7 +370,7 @@ class Server:
         buf = ["", ""]
         seen_keyword = 0
         unseen_keywords = list(expect or [])
-        poll_per_second = 20
+        poll_per_second = 30
         assert self.p is not None  # this helps static type checkers
         assert self.p.stdout is not None  # this helps static type checkers
         assert self.p.stderr is not None  # this helps static type checkers
@@ -374,13 +404,98 @@ class Client:
         # type: (str) -> None
         self._host_port = host_port
 
-    def run(self):
+    def truncated(self):
+        # type: () -> http.client.HTTPResponse
+        import http.client
+
+        conn = http.client.HTTPConnection(self._host_port, timeout=2)
+        declared_cl = 30
+        body = "shorter than %d bytes" % (declared_cl,)
+        assert len(body) < declared_cl
+        conn.request(
+            "GET",
+            "/",
+            headers={"Host": "localhost", "Content-Length": "%d" % (declared_cl,)},
+            body=body,
+        )
+        return conn.getresponse()
+
+    def valid(self):
         # type: () -> http.client.HTTPResponse
         import http.client
 
         conn = http.client.HTTPConnection(self._host_port, timeout=2)
         conn.request("GET", "/", headers={"Host": "localhost"}, body="GETBODY!")
         return conn.getresponse()
+
+
+@pytest.mark.parametrize("worker_class", TEST_SIMPLE)
+def test_process_request_after_invalid_request(worker_class):
+    # type: (str) -> None
+
+    # 1. start up the server with valid app
+    # 2. send some malformed requests
+    # 3. send some valid requests - server should still respond OK
+
+    fixed_port = 1024 * 6 + secrets.randbelow(1024 * 9)
+    # FIXME: should also test inherited socket (LISTEN_FDS)
+    server_bind = "[::1]:%d" % fixed_port
+
+    client = Client(server_bind)
+
+    with TemporaryDirectory(suffix="_temp_py") as tempdir_name:
+        with Server(
+            server_bind=server_bind,
+            worker_class=worker_class,
+            temp_path=Path(tempdir_name),
+            start_valid=True,
+        ) as server:
+            OUT = 0
+            ERR = 1
+
+            _boot_log = server.read_stdio(
+                key=ERR,
+                wait_for_keyword="Arbiter booted",
+                timeout_sec=BOOT_DEADLINE,
+                expect={
+                    "Booting worker",
+                },
+            )
+
+            # worker did boot now, request should be replied but not succeed
+            response = client.truncated()
+            assert response.status == 400, (response.status, response.reason)
+            assert response.reason == "OK", response.reason
+            assert response.reason == "Invalid Request", response.reason
+            body = response.read(64 * 1024).decode("utf-8", "surrogateescape")
+
+            _access_log = server.read_stdio(
+                key=OUT,
+                wait_for_keyword='"GET / HTTP/1.1" 400 ',
+                timeout_sec=BOOT_DEADLINE,
+            )
+
+            # worker still responsive, this request should work
+            response = client.valid()
+            assert response.status == 200, (response.status, response.reason)
+            assert response.reason == "OK", response.reason
+            body = response.read(64 * 1024).decode("utf-8", "surrogateescape")
+            assert "response body from app" == body, (body,)
+
+            _access_log = server.read_stdio(
+                key=OUT,
+                wait_for_keyword='"GET / HTTP/1.1" 200 ',
+                timeout_sec=BOOT_DEADLINE,
+            )
+
+            _shutdown_log = server.graceful_quit(
+                expect={
+                    "Handling signal: term",
+                    # FIXME: broken on PyPy + gevent, skip asserting this line for now
+                    # "Worker exiting ",
+                    "Shutting down: Master",
+                },
+            )
 
 
 @pytest.mark.parametrize("worker_class", TEST_TOLERATES_BAD_BOOT)
@@ -421,7 +536,7 @@ def test_process_request_after_fixing_syntax_error(worker_class):
             # raise RuntimeError(boot_log)
 
             # worker could not load, request will fail
-            response = client.run()
+            response = client.valid()
             assert response.status == 500, (response.status, response.reason)
             assert response.reason == "Internal Server Error", response.reason
             body = response.read(64 * 1024).decode("utf-8", "surrogateescape")
@@ -449,7 +564,7 @@ def test_process_request_after_fixing_syntax_error(worker_class):
             )
 
             # worker did boot now, request should work
-            response = client.run()
+            response = client.valid()
             assert response.status == 200, (response.status, response.reason)
             assert response.reason == "OK", response.reason
             body = response.read(64 * 1024).decode("utf-8", "surrogateescape")
@@ -509,7 +624,7 @@ def test_process_shutdown_cleanly_after_inserting_syntax_error(worker_class):
             )
 
             # worker did boot now, request should work
-            response = client.run()
+            response = client.valid()
             assert response.status == 200, (response.status, response.reason)
             assert response.reason == "OK", response.reason
             body = response.read(64 * 1024).decode("utf-8", "surrogateescape")
@@ -541,7 +656,7 @@ def test_process_shutdown_cleanly_after_inserting_syntax_error(worker_class):
             )
 
             # worker could not load, request will fail
-            response = client.run()
+            response = client.valid()
             assert response.status == 500, (response.status, response.reason)
             assert response.reason == "Internal Server Error", response.reason
             body = response.read(64 * 1024).decode("utf-8", "surrogateescape")

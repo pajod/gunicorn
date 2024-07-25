@@ -12,7 +12,7 @@ from gunicorn.http.errors import (
     InvalidHeader, InvalidHeaderName, NoMoreData,
     InvalidRequestLine, InvalidRequestMethod, InvalidHTTPVersion,
     LimitRequestLine, LimitRequestHeaders,
-    UnsupportedTransferCoding,
+    UnsupportedTransferCoding, ObsoleteFolding,
 )
 from gunicorn.http.errors import InvalidProxyLine, ForbiddenProxyRequest
 from gunicorn.http.errors import InvalidSchemeHeaders
@@ -112,7 +112,12 @@ class Message(object):
             # b"\xDF".decode("latin-1").upper().encode("ascii") == b"SS"
             name = name.upper()
 
-            value = [value.lstrip(" \t")]
+            value = [value.strip(" \t")]
+
+            # Refuse obsolete folding
+            if self.cfg.refuse_obsolete_folding:
+                if lines and lines[0].startswith((" ", "\t")):
+                    raise ObsoleteFolding(name)
 
             # Consume value continuation lines
             while lines and lines[0].startswith((" ", "\t")):
@@ -438,6 +443,17 @@ class Request(Message):
 
         # URI
         self.uri = bits[1]
+
+        # Python stdlib explicitly tells us it will not perform validation.
+        # https://docs.python.org/3/library/urllib.parse.html#url-parsing-security
+        # There are *four* `request-target` forms in rfc9112, none of them can be empty:
+        # 1. origin-form, which starts with a slash
+        # 2. absolute-form, which starts with a non-empty scheme
+        # 3. authority-form, (for CONNECT) which contains a colon after the host
+        # 4. asterisk-form, which is an asterisk (`\x2A`)
+        # => manually reject one always invalid URI: empty
+        if len(self.uri) == 0:
+            raise InvalidRequestLine(bytes_to_str(line_bytes))
 
         try:
             parts = split_request_uri(self.uri)
