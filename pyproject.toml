@@ -236,11 +236,8 @@ max-line-length = 120
 [tool.pylint."messages control"]
 disable = [
   "raw-checker-failed",
-  "bad-inline-option",
   "locally-disabled",
   "file-ignored",
-  "suppressed-message",
-  "useless-suppression",
   "deprecated-pragma",
   "use-symbolic-message-instead",
   "use-implicit-booleaness-not-comparison-to-string",
@@ -264,7 +261,6 @@ disable = [
   "no-else-return",
   "no-member",
   "no-self-argument",
-  "no-staticmethod-decorator",
   "not-callable",
   "protected-access",
   "raise-missing-from",
@@ -283,10 +279,10 @@ disable = [
   "ungrouped-imports",
   "unused-argument",
   "useless-object-inheritance",
-  "useless-import-alias",
   "comparison-with-callable",
   "try-except-raise",
   "consider-using-with",
   "consider-using-f-string",
   "unspecified-encoding",
+  "superfluous-parens",
 ]

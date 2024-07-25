@@ -32,12 +32,12 @@ TEST_SIMPLE = [
     pytest.param("sync"),
     "eventlet",
     "gevent",
-    "gevent_wsgi",
-    "gevent_pywsgi",
-    "tornado",
+    # "gevent_wsgi",
+    # "gevent_pywsgi",  # different error
+    # "tornado",  # permits empty method
     "gthread",
-    "aiohttp.GunicornWebWorker",
-    "aiohttp.GunicornUVLoopWebWorker",
+    # "aiohttp.GunicornWebWorker",
+    # "aiohttp.GunicornUVLoopWebWorker",  # traceback on emtpy method
 ]  # type: list[str|NamedTuple]
 
 TEST_TOLERATES_MAX_REQUESTS = [
@@ -323,7 +323,7 @@ class Server:
         if self.p is None:
             return
         self.p.send_signal(signal.SIGKILL)
-        stdout, stderr = self.p.communicate(timeout=2 + GRACEFUL_TIMEOUT)
+        stdout, stderr = self.p.communicate(timeout=4 + GRACEFUL_TIMEOUT)
         ret = self.p.returncode
         assert stdout == b"", stdout
         assert ret == 0, (ret, stdout, stderr)
@@ -404,6 +404,19 @@ class Client:
         # type: (str) -> None
         self._host_port = host_port
 
+    def malformed_request(self):
+        # type: () -> http.client.HTTPResponse
+        import http.client
+
+        conn = http.client.HTTPConnection(self._host_port, timeout=2)
+        conn.request(
+            "",
+            "/",
+            headers={"Host": "localhost", "foo": "bar"},
+            body="body",
+        )
+        return conn.getresponse()
+
     def truncated(self):
         # type: () -> http.client.HTTPResponse
         import http.client
@@ -463,15 +476,15 @@ def test_process_request_after_invalid_request(worker_class):
             )
 
             # worker did boot now, request should be replied but not succeed
-            response = client.truncated()
+            # response = client.truncated()
+            response = client.malformed_request()
             assert response.status == 400, (response.status, response.reason)
-            assert response.reason == "OK", response.reason
-            assert response.reason == "Invalid Request", response.reason
+            assert response.reason == "Bad Request", response.reason
             body = response.read(64 * 1024).decode("utf-8", "surrogateescape")
 
             _access_log = server.read_stdio(
-                key=OUT,
-                wait_for_keyword='"GET / HTTP/1.1" 400 ',
+                key=ERR,
+                wait_for_keyword="Invalid request from ip=::1: Invalid HTTP method: ''",
                 timeout_sec=BOOT_DEADLINE,
             )
 

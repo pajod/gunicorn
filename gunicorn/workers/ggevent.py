@@ -168,14 +168,24 @@ class PyWSGIHandler(pywsgi.WSGIHandler):
         start = datetime.fromtimestamp(self.time_start)
         finish = datetime.fromtimestamp(self.time_finish)
         response_time = finish - start
-        resp_headers_bytes = getattr(self, 'response_headers', [])
+        resp_headers_bytes = getattr(self, 'response_headers', []) or []  # None if malformed
         resp_headers = [(n.decode(), v.decode()) for (n, v) in resp_headers_bytes]
-        resp = GeventResponse(self.status.decode(), resp_headers, self.response_length)
-        if hasattr(self, 'headers'):
+        # FIXME
+        st = (self.status or b'- -')
+        if isinstance(st, bytes):
+            st = st.decode()
+        resp = GeventResponse(st, resp_headers, self.response_length)
+        if hasattr(self, 'headers') and self.headers is not None:
             req_headers = self.headers.items()
         else:
+            # FIXME
             req_headers = []
-        self.server.log.access(resp, req_headers, self.environ, response_time)
+        if hasattr(self, 'environ') and self.environ is not None:
+            env = self.environ
+        else:
+            # FIXME
+            env = {"REQUEST_METHOD": "", "RAW_URI": "", "SERVER_PROTOCOL": ""}
+        self.server.log.access(resp, req_headers, env, response_time)
 
     def get_environ(self):
         env = super().get_environ()

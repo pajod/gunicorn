@@ -2252,6 +2252,7 @@ class RefuseObsoleteFolding(BoolSetting):
         .. versionadded:: 22.0.1
         """
 
+
 class StripHeaderSpaces(BoolSetting):
     name = "strip_header_spaces"
     section = "Server Mechanics"

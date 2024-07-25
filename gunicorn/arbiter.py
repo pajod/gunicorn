@@ -426,7 +426,9 @@ class Arbiter(object):
         os.chdir(self.START_CTX['cwd'])
 
         # exec the process using the original environment
-        os.execvpe(self.START_CTX[0], self.START_CTX['args'], environ)
+        # note: sys.executable is absolute, no need for inspecting $PATH
+        # https://docs.python.org/3/library/sys.html#sys.executable
+        os.execve(self.START_CTX[0], self.START_CTX['args'], environ)
 
     def reload(self):
         old_address = self.cfg.address

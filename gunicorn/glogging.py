@@ -243,7 +243,8 @@ class Logger(object):
             config = CONFIG_DEFAULTS.copy()
             if os.path.exists(cfg.logconfig_json):
                 try:
-                    config_json = json.load(open(cfg.logconfig_json))
+                    with open(cfg.logconfig_json) as f:
+                        config_json = json.load(f)
                     config.update(config_json)
                     dictConfig(config)
                 except (

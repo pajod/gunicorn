@@ -17,6 +17,9 @@ Gunicorn
     :alt: Lint Status
     :target: https://github.com/benoitc/gunicorn/actions/workflows/lint.yml
 
+.. image:: https://repology.org/badge/vertical-allrepos/gunicorn.svg?minversion=21.1.0&columns=4&exclude_unsupported=1    :alt: Gunicorn is packaged in 28 repositories
+    :target: https://repology.org/project/gunicorn/information
+
 Gunicorn 'Green Unicorn' is a Python WSGI HTTP Server for UNIX. It's a pre-fork
 worker model ported from Ruby's Unicorn_ project. The Gunicorn server is broadly
 compatible with various web frameworks, simply implemented, light on server

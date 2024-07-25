@@ -95,6 +95,7 @@ class ObsoleteFolding(ParseException):
     def __str__(self):
         return "Obsolete line folding is unacceptable: %r" % (self.hdr, )
 
+
 class InvalidHeaderName(ParseException):
     def __init__(self, hdr):
         self.hdr = hdr
