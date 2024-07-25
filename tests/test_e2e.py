@@ -1,13 +1,13 @@
+import importlib
 import os
 import secrets
 import signal
 import subprocess
 import sys
 import time
-import importlib
-from typing import TYPE_CHECKING
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from typing import NamedTuple, Self, Any
@@ -37,8 +37,8 @@ TEST_TOLERATES_BAD_BOOT = [
     "gevent_pywsgi",
     "tornado",
     "gthread",
-    #"aiohttp.GunicornWebWorker",
-    #"aiohttp.GunicornUVLoopWebWorker",
+    # "aiohttp.GunicornWebWorker",
+    # "aiohttp.GunicornUVLoopWebWorker",
 ]  # type: list[str|NamedTuple]
 
 TEST_TOLERATES_BAD_RELOAD = [
@@ -80,9 +80,12 @@ for worker_name, worker_needs in WORKER_DEPENDS.items():
     missing = list(dependency in NOT_INSTALLED for dependency in worker_needs)
     if missing:
         for T in (TEST_TOLERATES_BAD_BOOT, TEST_TOLERATES_BAD_RELOAD):
-            if worker_name not in T: continue
+            if worker_name not in T:
+                continue
             T.remove(worker_name)
-            skipped_worker = pytest.param(worker_name, marks=pytest.mark.skip("%s not installed" % (missing[0])))
+            skipped_worker = pytest.param(
+                worker_name, marks=pytest.mark.skip("%s not installed" % (missing[0]))
+            )
             T.append(skipped_worker)
 
 
@@ -325,7 +328,7 @@ class Server:
         assert exitcode == 0, (exitcode, stdout, stderr)
         self.p = None
         ret = stderr.decode("utf-8", "surrogateescape")
-        for keyword in (expect or ()):
+        for keyword in expect or ():
             assert keyword in ret, (keyword, ret)
         return ret
 
@@ -450,7 +453,7 @@ def test_process_request_after_fixing_syntax_error(worker_class):
             assert response.status == 200, (response.status, response.reason)
             assert response.reason == "OK", response.reason
             body = response.read(64 * 1024).decode("utf-8", "surrogateescape")
-            assert "response body from app" == body, (body, )
+            assert "response body from app" == body, (body,)
 
             _debug_log = server.read_stdio(
                 key=ERR,
@@ -510,7 +513,7 @@ def test_process_shutdown_cleanly_after_inserting_syntax_error(worker_class):
             assert response.status == 200, (response.status, response.reason)
             assert response.reason == "OK", response.reason
             body = response.read(64 * 1024).decode("utf-8", "surrogateescape")
-            assert "response body from app" == body, (body, )
+            assert "response body from app" == body, (body,)
 
             _debug_log = server.read_stdio(
                 key=ERR,
