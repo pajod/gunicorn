@@ -138,13 +138,13 @@ class Worker(object):
         try:
             self.wsgi = self.app.wsgi()
         except SyntaxError as e:
-            if self.cfg.on_fatal == "world-readable":
+            if self.cfg.if_no_app == "world-readable":
                 pass
-            elif self.cfg.on_fatal == "quiet":
+            elif self.cfg.if_no_app == "quiet":
                 self.log.exception(e)
                 self.wsgi = util.make_fail_app("Internal Server Error")
                 return
-            elif self.cfg.on_fatal == "guess" and self.cfg.reload:
+            elif self.cfg.if_no_app == "guess" and self.cfg.reload:
                 pass
             else:
                 # secure fallthrough: "refuse"

@@ -277,7 +277,7 @@ class Server:
             "--access-logfile=-",
             "--disable-redirect-access-to-syslog",
             "--graceful-timeout=%d" % (GRACEFUL_TIMEOUT,),
-            "--on-fatal={}".format("world-readable" if public_traceback else "quiet"),
+            "--if-no-app={}".format("world-readable" if public_traceback else "quiet"),
             # "--reload",
             # sandwich the one we care for: verify multiple instances of --reload-extra
             "--reload-extra",
@@ -540,7 +540,7 @@ def test_process_request_after_fixing_syntax_error(worker_class):
             assert response.status == 500, (response.status, response.reason)
             assert response.reason == "Internal Server Error", response.reason
             body = response.read(64 * 1024).decode("utf-8", "surrogateescape")
-            # --on-fatal=quiet responds, but does NOT share traceback
+            # --if-no-app=quiet responds, but does NOT share traceback
             assert "error" in body.lower()
             assert "load_wsgi" not in body.lower()
 

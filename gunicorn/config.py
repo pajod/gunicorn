@@ -926,7 +926,7 @@ class Reload(BoolSetting):
         .. note::
            By default, enabling this will modify the handling of application errors
            from returning a general error to sharing sensitive information,
-           see :ref:`on-fatal` for details.
+           see :ref:`if-no-app` for details.
         '''
 
 
@@ -2438,10 +2438,10 @@ def validate_fatal_behaviour(val):
         raise ValueError("Invalid header map behaviour: %s" % val)
 
 
-class OnFatal(Setting):
-    name = "on_fatal"
+class IfNoApp(Setting):
+    name = "if_no_app"
     section = "Server Mechanics"
-    cli = ["--on-fatal"]
+    cli = ["--if-no-app"]
     validator = validate_fatal_behaviour
     default = "guess"
     desc = """\
