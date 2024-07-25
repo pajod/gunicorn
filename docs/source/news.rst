@@ -2,15 +2,22 @@
 Changelog
 =========
 
-22.0.1 - 2TBDTBDTBD
+22.1.0 - 2024-BDTBD
 ===================
 
-- the SCRIPT_NAME header when received from allowed forwarders is no longer restricted for containing an underscore
+- the SCRIPT_NAME header is no longer restricted when received from allowed forwarders (:issue:`3200`)
+- single-threaded lock-free connection handling for gthread worker (:pr:`3157`)
+- the new ghthread behaviour removes a deadlock on exceeding configure connection count (:issue:`3146`)
+- enforce :rfc:`9110` section 5.5 requirements for *invalid and dangerous* header field values.
+  this modified restriction reduces the security hazard posed by incorrect proxy behaviour (:issue:`3144`)
+- strip whitespace suffix from header field value (:issue:`3245`)
+- no longer accept malformed requests that specify empty request target (:issue:`3235`)
+- FIXME: Gunicorn now breaks on some conditions where indicated Content-Length exceeds received bytes (:issue:`3234`)
 
 *** NOTE ***
 
-- This mitigates a regression that appeared first in the 22.0.0 release
-- Review your ``forwarded-allow-ips`` setting if you are still not seeing the SCRIPT_NAME transmitted
+- The SCRIPT_NAME change mitigates a regression that appeared first in the 22.0.0 release
+- Review your ``forwarded-allow-ips`` setting if you are not seeing an expected header
 
 22.0.0 - 2024-04-17
 ===================
