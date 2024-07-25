@@ -15,11 +15,8 @@ from ssl import SSLError
 
 from gunicorn import util
 from gunicorn.http.errors import (
-    ForbiddenProxyRequest, InvalidHeader,
-    InvalidHeaderName, InvalidHTTPVersion,
-    InvalidProxyLine, InvalidRequestLine,
-    InvalidRequestMethod, InvalidSchemeHeaders,
-    LimitRequestHeaders, LimitRequestLine,
+    ConfigurationProblem,
+    ParseException,
 )
 from gunicorn.http.wsgi import Response, default_environ
 from gunicorn.reloader import reloader_engines
@@ -211,54 +208,38 @@ class Worker(object):
         request_start = datetime.now()
         addr = addr or ('', -1)  # unix socket case
         if isinstance(exc, (
-            InvalidRequestLine, InvalidRequestMethod,
-            InvalidHTTPVersion, InvalidHeader, InvalidHeaderName,
-            LimitRequestLine, LimitRequestHeaders,
-            InvalidProxyLine, ForbiddenProxyRequest,
-            InvalidSchemeHeaders,
+            ConfigurationProblem,
+            ParseException,
             SSLError,
         )):
 
             status_int = 400
             reason = "Bad Request"
 
-            if isinstance(exc, InvalidRequestLine):
-                mesg = "Invalid Request Line '%s'" % str(exc)
-            elif isinstance(exc, InvalidRequestMethod):
-                mesg = "Invalid Method '%s'" % str(exc)
-            elif isinstance(exc, InvalidHTTPVersion):
-                mesg = "Invalid HTTP Version '%s'" % str(exc)
-            elif isinstance(exc, (InvalidHeaderName, InvalidHeader,)):
-                mesg = "%s" % str(exc)
+            if isinstance(exc, (ParseException, ConfigurationProblem)):
+                # NOTE: may include reflected input!
+                mesg = str(exc)
+                # fixed value from exception, safe for verbatim copy to status line
+                status_int = exc.code
+                # fixed value from exception, safe for verbatim copy to status line
+                reason = exc.reason
+                # FIXME: refactor. prone to unintended logic and does not equal previous behaviour
                 if not req and hasattr(exc, "req"):
-                    req = exc.req  # for access log
-            elif isinstance(exc, LimitRequestLine):
-                mesg = "%s" % str(exc)
-            elif isinstance(exc, LimitRequestHeaders):
-                reason = "Request Header Fields Too Large"
-                mesg = "Error parsing headers: '%s'" % str(exc)
-                status_int = 431
-            elif isinstance(exc, InvalidProxyLine):
-                mesg = "'%s'" % str(exc)
-            elif isinstance(exc, ForbiddenProxyRequest):
-                reason = "Forbidden"
-                mesg = "Request forbidden"
-                status_int = 403
-            elif isinstance(exc, InvalidSchemeHeaders):
-                mesg = "%s" % str(exc)
+                    req = exc.req
             elif isinstance(exc, SSLError):
                 reason = "Forbidden"
                 mesg = "'%s'" % str(exc)
                 status_int = 403
             else:
-                raise AssertionError("Bad isinstance branching")
+                raise AssertionError("Mismatched exception branches in handle_error()")
 
-            msg = "Invalid request from ip={ip}: {error}"
-            self.log.warning(msg.format(ip=addr[0], error=str(exc)))
+            logmsg = "Invalid request from ip={ip}: {error}"
+            self.log.warning(logmsg.format(ip=addr[0], error=str(exc)))
         else:
             if hasattr(req, "uri"):
                 self.log.exception("Error handling request %s", req.uri)
             else:
+                # FIXME: removing could hide relevant, keeping it is noisy for harmless ones
                 self.log.exception("Error handling request (no URI read)")
             status_int = 500
             reason = "Internal Server Error"

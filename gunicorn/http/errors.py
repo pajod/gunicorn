@@ -11,7 +11,8 @@
 
 
 class ParseException(Exception):
-    pass
+    code = 400
+    reason = "Bad Request"
 
 
 class NoMoreData(IOError):
@@ -22,25 +23,42 @@ class NoMoreData(IOError):
         return "No more data after: %r" % (self.buf, )
 
 
-class ConfigurationProblem(ParseException):
+class ConfigurationProblem(Exception):
+    code = 500
+    reason = "Internal Server Error"
+
     def __init__(self, info):
         self.info = info
-        self.code = 500
 
     def __str__(self):
         return "Configuration problem: %s" % (self.info, )
 
 
+class ExpectationFailed(ParseException):
+    reason = "Expectation Failed"
+    code = 417
+
+    def __init__(self, expect):
+        self.expect = expect
+
+    def __str__(self):
+        return "Expectation failed: %r" % (self.expect, )
+
+
 class InvalidRequestLine(ParseException):
+    code = 400
+    # note: rfc9112 section 3 permits 501 for long method, 414 for long URI
+
     def __init__(self, req):
         self.req = req
-        self.code = 400
 
     def __str__(self):
         return "Invalid HTTP request line: %r" % (self.req, )
 
 
 class InvalidRequestMethod(ParseException):
+    # not to be confused with: 405 Method Not Allowed
+
     def __init__(self, method):
         self.method = method
 
@@ -74,9 +92,10 @@ class InvalidHeaderName(ParseException):
 
 
 class UnsupportedTransferCoding(ParseException):
+    code = 501
+
     def __init__(self, hdr):
         self.hdr = hdr
-        self.code = 501
 
     def __str__(self):
         return "Unsupported transfer coding: %r" % (self.hdr, )
@@ -108,26 +127,33 @@ class LimitRequestLine(ParseException):
 
 
 class LimitRequestHeaders(ParseException):
+    code = 431
+    reason = "Request Header Fields Too Large"
+
     def __init__(self, msg):
         self.msg = msg
 
     def __str__(self):
-        return self.msg
+        # FIXME: verbose. maybe just return reason?
+        return "Error parsing headers: '%s'" % (self.reason, )
 
 
 class InvalidProxyLine(ParseException):
+    code = 400
+
     def __init__(self, line):
         self.line = line
-        self.code = 400
 
     def __str__(self):
         return "Invalid PROXY line: %r" % (self.line, )
 
 
 class ForbiddenProxyRequest(ParseException):
+    reason = "Forbidden"
+    code = 403
+
     def __init__(self, host):
         self.host = host
-        self.code = 403
 
     def __str__(self):
         return "Proxy request from %r not allowed" % (self.host, )

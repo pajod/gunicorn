@@ -10,7 +10,7 @@ import re
 import sys
 
 from gunicorn.http.message import TOKEN_RE
-from gunicorn.http.errors import ConfigurationProblem, InvalidHeader, InvalidHeaderName
+from gunicorn.http.errors import ConfigurationProblem, ExpectationFailed, InvalidHeader, InvalidHeaderName
 from gunicorn import SERVER_SOFTWARE, SERVER
 from gunicorn import util
 
@@ -124,6 +124,10 @@ def create(req, sock, client, server, cfg):
             # handle expect
             if hdr_value.lower() == "100-continue":
                 sock.send(b"HTTP/1.1 100 Continue\r\n\r\n")
+            # rfc9110 section 10.1.1. specifically permits returning 417
+            else:
+                # FIXME: consider unconditionally raising
+                _ = ExpectationFailed
         elif hdr_name == 'HOST':
             host = hdr_value
         elif hdr_name == "SCRIPT_NAME":

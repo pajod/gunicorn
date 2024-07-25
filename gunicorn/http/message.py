@@ -418,6 +418,7 @@ class Request(Message):
         if not self.cfg.permit_unconventional_http_method:
             if METHOD_BADCHAR_RE.search(self.method):
                 raise InvalidRequestMethod(self.method)
+            # FIXME: split for a more specific 414 URI Too Long
             if not 3 <= len(bits[0]) <= 20:
                 raise InvalidRequestMethod(self.method)
         # standard restriction: RFC9110 token
