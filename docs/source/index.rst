@@ -4,7 +4,7 @@ Gunicorn - WSGI server
 
 .. image:: _static/gunicorn.png
 
-:Website: http://gunicorn.org
+:Website: https://gunicorn.org
 :Source code: https://github.com/benoitc/gunicorn
 :Issue tracker: https://github.com/benoitc/gunicorn/issues
 :IRC: ``#gunicorn`` on Libera Chat
