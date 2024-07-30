@@ -1396,6 +1396,23 @@ The variables are passed to the PasteDeploy entrypoint. Example::
 
 .. versionadded:: 19.7
 
+.. _refuse-obsolete-folding:
+
+``refuse_obsolete_folding``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Command line:** ``--refuse-obsolete-folding``
+
+**Default:** ``False``
+
+Refuse requests employing obsolete HTTP line folding mechanism
+
+The mechanism was deprecated by rfc7230 Section 3.2.4.
+
+Safe to enable if you only ever want to serve standards compliant HTTP clients.
+
+.. versionadded:: 22.1.0
+
 .. _strip-header-spaces:
 
 ``strip_header_spaces``
