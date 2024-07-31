@@ -9,6 +9,7 @@ import argparse
 import copy
 import grp
 import inspect
+import ipaddress
 import os
 import pwd
 import re
@@ -398,6 +399,17 @@ def validate_list_string(val):
 
 def validate_list_of_existing_files(val):
     return [validate_file_exists(v) for v in validate_list_string(val)]
+
+
+def validate_string_to_addr_list(val):
+    val = validate_string_to_list(val)
+
+    for addr in val:
+        if addr == "*":
+            continue
+        _vaid_ip = ipaddress.ip_address(addr)
+
+    return val
 
 
 def validate_string_to_list(val):
@@ -1260,18 +1272,19 @@ class ForwardedAllowIPS(Setting):
     section = "Server Mechanics"
     cli = ["--forwarded-allow-ips"]
     meta = "STRING"
-    validator = validate_string_to_list
-    default = os.environ.get("FORWARDED_ALLOW_IPS", "127.0.0.1")
+    validator = validate_string_to_addr_list
+    default = os.environ.get("FORWARDED_ALLOW_IPS", "127.0.0.1,::1")
     desc = """\
         Front-end's IPs from which allowed to handle set secure headers.
         (comma separate).
 
-        Set to ``*`` to disable checking of Front-end IPs (useful for setups
+        Set to ``*`` to disable checking of Front-end IPs. This is useful for setups
         where you don't know in advance the IP address of Front-end, but
-        you still trust the environment).
+        instead have ensured via other means that none other than your
+        authorized Front-ends can access gunicorn.
 
         By default, the value of the ``FORWARDED_ALLOW_IPS`` environment
-        variable. If it is not defined, the default is ``"127.0.0.1"``.
+        variable. If it is not defined, the default is ``"127.0.0.1,::1"``.
 
         .. note::
 
@@ -2241,6 +2254,24 @@ class PasteGlobalConf(Setting):
         """
 
 
+class RefuseObsoleteFolding(Setting):
+    name = "refuse_obsolete_folding"
+    section = "Server Mechanics"
+    cli = ["--refuse-obsolete-folding"]
+    validator = validate_bool
+    action = "store_true"
+    default = False
+    desc = """\
+        Refuse requests employing obsolete HTTP line folding mechanism
+
+        The mechanism was deprecated by rfc7230 Section 3.2.4.
+
+        Safe to enable if you only ever want to serve standards compliant HTTP clients.
+
+        .. versionadded:: 22.1.0
+        """
+
+
 class StripHeaderSpaces(Setting):
     name = "strip_header_spaces"
     section = "Server Mechanics"
@@ -2254,7 +2285,7 @@ class StripHeaderSpaces(Setting):
         This is known to induce vulnerabilities and is not compliant with the HTTP/1.1 standard.
         See https://portswigger.net/research/http-desync-attacks-request-smuggling-reborn.
 
-        Use with care and only if necessary. May be removed in a future version.
+        Use with care and only if necessary. Deprecated; scheduled for removal in 25.0.0
 
         .. versionadded:: 20.0.1
         """
@@ -2274,9 +2305,13 @@ class PermitUnconventionalHTTPMethod(Setting):
         methods with lowercase characters or methods containing the # character.
         HTTP methods are case sensitive by definition, and merely uppercase by convention.
 
-        This option is provided to diagnose backwards-incompatible changes.
+        If unset, Gunicorn will apply nonstandard restrictions and cause 400 response status
+        in cases where otherwise 501 status is expected. While this option does modify that
+        behaviour, it should not be depended upon to guarantee standards-compliant behaviour.
+        Rather, it is provided temporarily, to assist in diagnosing backwards-incompatible
+        changes around the incomplete application of those restrictions.
 
-        Use with care and only if necessary. May be removed in a future version.
+        Use with care and only if necessary. Temporary; scheduled for removal in 24.0.0
 
         .. versionadded:: 22.0.0
         """
@@ -2296,7 +2331,8 @@ class PermitUnconventionalHTTPVersion(Setting):
         It is unusual to specify HTTP 1 versions other than 1.0 and 1.1.
 
         This option is provided to diagnose backwards-incompatible changes.
-        Use with care and only if necessary. May be removed in a future version.
+        Use with care and only if necessary. Temporary; the precise effect of this option may
+        change in a future version, or it may be removed altogether.
 
         .. versionadded:: 22.0.0
         """
@@ -2316,7 +2352,7 @@ class CasefoldHTTPMethod(Setting):
 
          This option is provided because previous versions of gunicorn defaulted to this behaviour.
 
-         Use with care and only if necessary. May be removed in a future version.
+         Use with care and only if necessary. Deprecated; scheduled for removal in 24.0.0
 
          .. versionadded:: 22.0.0
          """
@@ -2340,6 +2376,26 @@ def validate_header_map_behaviour(val):
         raise ValueError("Invalid header map behaviour: %s" % val)
 
 
+class ForwarderHeaders(Setting):
+    name = "forwarder_headers"
+    section = "Server Mechanics"
+    cli = ["--forwarder-headers"]
+    validator = validate_string_to_list
+    default = "SCRIPT_NAME"
+    desc = """\
+
+        A list containing upper-case header field names that the front-end proxy
+        sets, to be used in WSGI environment.
+
+        If headers named in this list are not present in the request, they will be ignored.
+
+        This option can be used to transfer SCRIPT_NAME and REMOTE_USER.
+
+        It is important that your front-end proxy configuration ensures that
+        the headers defined here can not be passed directly from the client.
+        """
+
+
 class HeaderMap(Setting):
     name = "header_map"
     section = "Server Mechanics"
@@ -2355,8 +2411,12 @@ class HeaderMap(Setting):
 
         The safe default ``drop`` is to silently drop headers that cannot be unambiguously mapped.
         The value ``refuse`` will return an error if a request contains *any* such header.
-        The value ``dangerous`` matches the previous, not advisabble, behaviour of mapping different
+        The value ``dangerous`` matches the previous, not advisable, behaviour of mapping different
         header field names into the same environ name.
+
+        If the source IP is permitted by ``forwarded-allow-ips``, *and* the header name is
+        present in ``forwarder-headers``, the header is mapped into environment regardless of
+        the state of this setting.
 
         Use with care and only if necessary and after considering if your problem could
         instead be solved by specifically renaming or rewriting only the intended headers
@@ -2378,7 +2438,16 @@ class TolerateDangerousFraming(Setting):
 
         This is known to induce vulnerabilities, but not strictly forbidden by RFC9112.
 
-        Use with care and only if necessary. May be removed in a future version.
+        In any case, the connection is closed after the malformed request,
+        as it is unclear if and at which boundary additional requests start.
+
+        Use with care and only if necessary.
+        Temporary; will be changed or removed in a future version.
 
         .. versionadded:: 22.0.0
+        .. versionchanged: 22.1.0
+           The newly added rejection of invalid and dangerous characters CR, LF and NUL in
+           header field values is also controlled with this setting. rfc9110 permits both
+           rejecting and SP-replacing. With this option set, Gunicorn passes the field value
+           unchanged. With this option unset, Gunicorn rejects the request.
         """

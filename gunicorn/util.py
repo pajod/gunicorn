@@ -5,7 +5,6 @@
 import ast
 import email.utils
 import errno
-import fcntl
 import html
 import importlib
 import inspect
@@ -142,17 +141,13 @@ def set_owner_process(uid, gid, initgroups=False):
     """ set user and group of workers processes """
 
     if gid:
+        username = None
         if uid:
             try:
                 username = get_username(uid)
             except KeyError:
-                initgroups = False
-
-        # versions of python < 2.6.2 don't manage unsigned int for
-        # groups like on osx or fedora
-        gid = abs(gid) & 0x7FFFFFFF
-
-        if initgroups:
+                pass
+        if initgroups and username is not None:
             os.initgroups(username, gid)
         elif gid != os.getgid():
             os.setgid(gid)
@@ -166,15 +161,12 @@ def chown(path, uid, gid):
 
 
 if sys.platform.startswith("win"):
-    def _waitfor(func, pathname, waitall=False):
+    def _waitfor(func, pathname):
         # Perform the operation
         func(pathname)
         # Now setup the wait loop
-        if waitall:
-            dirname = pathname
-        else:
-            dirname, name = os.path.split(pathname)
-            dirname = dirname or '.'
+        dirname, name = os.path.split(pathname)
+        dirname = dirname or '.'
         # Check for `pathname` to be removed from the filesystem.
         # The exponential backoff of the timeout amounts to a total
         # of ~1 second after which the deletion is probably an error
@@ -191,7 +183,7 @@ if sys.platform.startswith("win"):
             # Other Windows APIs can fail or give incorrect results when
             # dealing with files that are pending deletion.
             L = os.listdir(dirname)
-            if not L if waitall else name in L:
+            if name in L:
                 return
             # Increase the timeout and try again
             time.sleep(timeout)
@@ -256,14 +248,17 @@ def parse_address(netloc, default_port='8000'):
 
 
 def close_on_exec(fd):
-    flags = fcntl.fcntl(fd, fcntl.F_GETFD)
-    flags |= fcntl.FD_CLOEXEC
-    fcntl.fcntl(fd, fcntl.F_SETFD, flags)
+    # available since Python 3.4, equivalent to either:
+    # ioctl(fd, FIOCLEX)
+    # fcntl(fd, F_SETFD, fcntl(fd, F_GETFD) | FD_CLOEXEC)
+    os.set_inheritable(fd, False)
 
 
 def set_non_blocking(fd):
-    flags = fcntl.fcntl(fd, fcntl.F_GETFL) | os.O_NONBLOCK
-    fcntl.fcntl(fd, fcntl.F_SETFL, flags)
+    # available since Python 3.5, equivalent to either:
+    # ioctl(fd, FIONBIO)
+    # fcntl(fd, fcntl.F_SETFL, fcntl(fd, F_GETFL) | O_NONBLOCK)
+    os.set_blocking(fd, False)
 
 
 def close(sock):

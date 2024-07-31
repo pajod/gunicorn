@@ -12,7 +12,7 @@ from gunicorn.http.errors import (
     InvalidHeader, InvalidHeaderName, NoMoreData,
     InvalidRequestLine, InvalidRequestMethod, InvalidHTTPVersion,
     LimitRequestLine, LimitRequestHeaders,
-    UnsupportedTransferCoding,
+    UnsupportedTransferCoding, ObsoleteFolding,
 )
 from gunicorn.http.errors import InvalidProxyLine, ForbiddenProxyRequest
 from gunicorn.http.errors import InvalidSchemeHeaders
@@ -28,6 +28,7 @@ TOKEN_RE = re.compile(r"[%s0-9a-zA-Z]+" % (re.escape(RFC9110_5_6_2_TOKEN_SPECIAL
 METHOD_BADCHAR_RE = re.compile("[a-z#]")
 # usually 1.0 or 1.1 - RFC9112 permits restricting to single-digit versions
 VERSION_RE = re.compile(r"HTTP/(\d)\.(\d)")
+RFC9110_5_5_INVALID_AND_DANGEROUS = re.compile(r"[\0\r\n]")
 
 
 class Message(object):
@@ -77,6 +78,7 @@ class Message(object):
         # handle scheme headers
         scheme_header = False
         secure_scheme_headers = {}
+        forwarder_headers = []
         if from_trailer:
             # nonsense. either a request is https from the beginning
             #  .. or we are just behind a proxy who does not remove conflicting trailers
@@ -85,6 +87,7 @@ class Message(object):
               not isinstance(self.peer_addr, tuple)
               or self.peer_addr[0] in cfg.forwarded_allow_ips):
             secure_scheme_headers = cfg.secure_scheme_headers
+            forwarder_headers = cfg.forwarder_headers
 
         # Parse headers into key/value pairs paying attention
         # to continuation lines.
@@ -109,9 +112,13 @@ class Message(object):
             # b"\xDF".decode("latin-1").upper().encode("ascii") == b"SS"
             name = name.upper()
 
-            value = [value.lstrip(" \t")]
+            value = [value.strip(" \t")]
 
-            # Consume value continuation lines
+            # Refuse obsolete folding
+            if self.cfg.refuse_obsolete_folding:
+                if lines and lines[0].startswith((" ", "\t")):
+                    raise ObsoleteFolding(name)
+            # OR: Consume value continuation lines
             while lines and lines[0].startswith((" ", "\t")):
                 curr = lines.pop(0)
                 header_length += len(curr) + len("\r\n")
@@ -120,6 +127,12 @@ class Message(object):
                                               "fields size")
                 value.append(curr.strip("\t "))
             value = " ".join(value)
+
+            if RFC9110_5_5_INVALID_AND_DANGEROUS.search(value):
+                if not self.cfg.tolerate_dangerous_framing:
+                    raise InvalidHeader(name)
+                # value = RFC9110_5_5_INVALID_AND_DANGEROUS.sub(" ", value)
+                self.force_close()
 
             if header_length > self.limit_request_field_size > 0:
                 raise LimitRequestHeaders("limit request headers fields size")
@@ -140,7 +153,10 @@ class Message(object):
             # HTTP_X_FORWARDED_FOR = 2001:db8::ha:cc:ed,127.0.0.1,::1
             # Only modify after fixing *ALL* header transformations; network to wsgi env
             if "_" in name:
-                if self.cfg.header_map == "dangerous":
+                if name in forwarder_headers or "*" in forwarder_headers:
+                    # This forwarder may override our environment
+                    pass
+                elif self.cfg.header_map == "dangerous":
                     # as if we did not know we cannot safely map this
                     pass
                 elif self.cfg.header_map == "drop":
@@ -425,6 +441,17 @@ class Request(Message):
 
         # URI
         self.uri = bits[1]
+
+        # Python stdlib explicitly tells us it will not perform validation.
+        # https://docs.python.org/3/library/urllib.parse.html#url-parsing-security
+        # There are *four* `request-target` forms in rfc9112, none of them can be empty:
+        # 1. origin-form, which starts with a slash
+        # 2. absolute-form, which starts with a non-empty scheme
+        # 3. authority-form, (for CONNECT) which contains a colon after the host
+        # 4. asterisk-form, which is an asterisk (`\x2A`)
+        # => manually reject one always invalid URI: empty
+        if len(self.uri) == 0:
+            raise InvalidRequestLine(bytes_to_str(line_bytes))
 
         try:
             parts = split_request_uri(self.uri)

@@ -1232,17 +1232,18 @@ the headers defined here can not be passed directly from the client.
 
 **Command line:** ``--forwarded-allow-ips STRING``
 
-**Default:** ``'127.0.0.1'``
+**Default:** ``'127.0.0.1,::1'``
 
 Front-end's IPs from which allowed to handle set secure headers.
 (comma separate).
 
-Set to ``*`` to disable checking of Front-end IPs (useful for setups
+Set to ``*`` to disable checking of Front-end IPs. This is useful for setups
 where you don't know in advance the IP address of Front-end, but
-you still trust the environment).
+instead have ensured via other means that none other than your
+authorized Front-ends can access gunicorn.
 
 By default, the value of the ``FORWARDED_ALLOW_IPS`` environment
-variable. If it is not defined, the default is ``"127.0.0.1"``.
+variable. If it is not defined, the default is ``"127.0.0.1,::1"``.
 
 .. note::
 
@@ -1396,6 +1397,23 @@ The variables are passed to the PasteDeploy entrypoint. Example::
 
 .. versionadded:: 19.7
 
+.. _refuse-obsolete-folding:
+
+``refuse_obsolete_folding``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Command line:** ``--refuse-obsolete-folding``
+
+**Default:** ``False``
+
+Refuse requests employing obsolete HTTP line folding mechanism
+
+The mechanism was deprecated by rfc7230 Section 3.2.4.
+
+Safe to enable if you only ever want to serve standards compliant HTTP clients.
+
+.. versionadded:: 22.1.0
+
 .. _strip-header-spaces:
 
 ``strip_header_spaces``
@@ -1410,7 +1428,7 @@ Strip spaces present between the header name and the the ``:``.
 This is known to induce vulnerabilities and is not compliant with the HTTP/1.1 standard.
 See https://portswigger.net/research/http-desync-attacks-request-smuggling-reborn.
 
-Use with care and only if necessary. May be removed in a future version.
+Use with care and only if necessary. Deprecated; scheduled for removal in 25.0.0
 
 .. versionadded:: 20.0.1
 
@@ -1429,9 +1447,13 @@ This permits request methods of length less than 3 or more than 20,
 methods with lowercase characters or methods containing the # character.
 HTTP methods are case sensitive by definition, and merely uppercase by convention.
 
-This option is provided to diagnose backwards-incompatible changes.
+If unset, Gunicorn will apply nonstandard restrictions and cause 400 response status
+in cases where otherwise 501 status is expected. While this option does modify that
+behaviour, it should not be depended upon to guarantee standards-compliant behaviour.
+Rather, it is provided temporarily, to assist in diagnosing backwards-incompatible
+changes around the incomplete application of those restrictions.
 
-Use with care and only if necessary. May be removed in a future version.
+Use with care and only if necessary. Temporary; scheduled for removal in 24.0.0
 
 .. versionadded:: 22.0.0
 
@@ -1450,7 +1472,8 @@ This disables the refusal of likely malformed request lines.
 It is unusual to specify HTTP 1 versions other than 1.0 and 1.1.
 
 This option is provided to diagnose backwards-incompatible changes.
-Use with care and only if necessary. May be removed in a future version.
+Use with care and only if necessary. Temporary; the precise effect of this option may
+change in a future version, or it may be removed altogether.
 
 .. versionadded:: 22.0.0
 
@@ -1469,9 +1492,28 @@ HTTP methods are case sensitive by definition, and merely uppercase by conventio
 
 This option is provided because previous versions of gunicorn defaulted to this behaviour.
 
-Use with care and only if necessary. May be removed in a future version.
+Use with care and only if necessary. Deprecated; scheduled for removal in 24.0.0
 
 .. versionadded:: 22.0.0
+
+.. _forwarder-headers:
+
+``forwarder_headers``
+~~~~~~~~~~~~~~~~~~~~~
+
+**Command line:** ``--forwarder-headers``
+
+**Default:** ``'SCRIPT_NAME'``
+
+A list containing upper-case header field names that the front-end proxy
+sets, to be used in WSGI environment.
+
+If headers named in this list are not present in the request, they will be ignored.
+
+This option can be used to transfer SCRIPT_NAME and REMOTE_USER.
+
+It is important that your front-end proxy configuration ensures that
+the headers defined here can not be passed directly from the client.
 
 .. _header-map:
 
@@ -1490,8 +1532,12 @@ the same environment variable will dangerously confuse applications as to which 
 
 The safe default ``drop`` is to silently drop headers that cannot be unambiguously mapped.
 The value ``refuse`` will return an error if a request contains *any* such header.
-The value ``dangerous`` matches the previous, not advisabble, behaviour of mapping different
+The value ``dangerous`` matches the previous, not advisable, behaviour of mapping different
 header field names into the same environ name.
+
+If the source IP is permitted by ``forwarded-allow-ips``, *and* the header name is
+present in ``forwarder-headers``, the header is mapped into environment regardless of
+the state of this setting.
 
 Use with care and only if necessary and after considering if your problem could
 instead be solved by specifically renaming or rewriting only the intended headers
@@ -1512,9 +1558,18 @@ Process requests with both Transfer-Encoding and Content-Length
 
 This is known to induce vulnerabilities, but not strictly forbidden by RFC9112.
 
-Use with care and only if necessary. May be removed in a future version.
+In any case, the connection is closed after the malformed request,
+as it is unclear if and at which boundary additional requests start.
+
+Use with care and only if necessary.
+Temporary; will be changed or removed in a future version.
 
 .. versionadded:: 22.0.0
+.. versionchanged: 22.1.0
+   The newly added rejection of invalid and dangerous characters CR, LF and NUL in
+   header field values is also controlled with this setting. rfc9110 permits both
+   rejecting and SP-replacing. With this option set, Gunicorn passes the field value
+   unchanged. With this option unset, Gunicorn rejects the request.
 
 Server Socket
 -------------
