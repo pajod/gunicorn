@@ -38,6 +38,7 @@ Install from PyPI::
 
     $ pip install gunicorn
 
+Or from your distributions packages, see Distributing_.
 
 Usage
 -----
@@ -62,6 +63,8 @@ Gunicorn understands HTTP/0.9, HTTP/1.0 and HTTP/1.1 and seeks to comply with th
 internet standards `RFC 9110: HTTP Semantics <https://datatracker.ietf.org/doc/html/rfc9110>`_ and
 `RFC 9112: HTTP/1.1 <https://datatracker.ietf.org/doc/html/rfc9112>`_.
 
+Gunicorn understands `systemD socket activation <https://docs.gunicorn.org/en/stable/deploy.html#systemd>`_
+and ``NOTIFY_SOCKET`` and is designed work with minimal privileges or in a sandbox.
 
 Gunicorn should work on any POSIX system running CPython or PyPy, however is only tested on some:
 
@@ -69,30 +72,30 @@ Gunicorn should work on any POSIX system running CPython or PyPy, however is onl
    :widths: 25 25 50
    :header-rows: 1
 
-   * - Kernel / OS
+   * - Platform
      - Architectures
      - Notes
    * - Linux 3.2+
-     - unicode:: arm64 (U+2705), x86_64 (U+2705), x86 (untested)
-     - unicode:: CI-tested: Ubuntu (U+2705), Should work: almost any distribution
-   * - Linux @ WSL2
+     - arm64 (✅), x86_64 (✅), x86 (🯄 untested)
+     - CI-tested: Ubuntu (✅), should work: almost any distribution
+   * - Linux 5.15+ @ WSL2
      - x86_64
      - do not use Windows filesystems
-   * - unicode:: x86_64 (U+270), arm64 (U+270)
-     - unicode:: CI-tested: macOS 13 (U+270), macOS 14 (U+270)
-     - performance issues in PyPy
+   * - x86_64 (✅), arm64 (✅)
+     - CI-tested: macOS 13 (✅), macOS 14 (✅)
+     - unresolved performance issues for the arm64+PyPy pair
    * - FreeBSD
      -
-     - not CI-tested
+     - 🯄 not CI-tested
    * - OpenBSD
      -
-     - not CI-tested
+     - 🯄 not CI-tested
    * - GNU Hurd
      - Guix System
-     - unknown
+     - 🯄 unknown
    * - Windows
      - any
-     - does not work (and even if non-portable code was updated, Windows PIPE handling was only completed in Python ``> 3.12``)
+     - ❌does **not** work (even if non-portable code was updated, Windows PIPE handling was only completed in Python ``> 3.12``)
 
 Gunicorn can be used with different workers, both included and externally provided.
 
@@ -105,13 +108,13 @@ Gunicorn can be used with different workers, both included and externally provid
    * - sync
      - no pipe-lining support
    * - thread
-     - always
+     - OK
    * - eventlet
-     - greenlet, only Python ``< 3.13``, `*New usages of eventlet are now heavily discouraged!* <https://github.com/eventlet/eventlet?tab=readme-ov-file#warning>`_
+     - greenlet, only Python ``< 3.13``, *`New usages of eventlet are now heavily discouraged! <https://github.com/eventlet/eventlet?tab=readme-ov-file#warning>`_*
    * - gevent
-     - always
+     - OK
    * - tornado
-     - always
+     - OK
    * - ``uvicorn.workers.UvicornWorker``, ``uvicorn.workers.UvicornH11Worker``
      - `deprecated <https://github.com/encode/uvicorn/pull/2302>`_
    * - uvicorn_worker.UvicornWorker
@@ -123,14 +126,11 @@ Contributing
 See `our complete contributor's guide <CONTRIBUTING.md>`_ for more details.
 
 
-License
--------
+Distributing
+------------
 
 Gunicorn is released under the MIT License. See the LICENSE_ file for more
-details.
-
-Distributions
--------------
+details. A number of distributions package Gunicorn:
 
 .. image:: https://repology.org/badge/vertical-allrepos/gunicorn.svg?minversion=21.1.0&columns=4&exclude_unsupported=1    :alt: Gunicorn is packaged in 28 repositories
     :target: https://repology.org/project/gunicorn/information
