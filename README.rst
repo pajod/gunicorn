@@ -66,9 +66,7 @@ internet standards `RFC 9110: HTTP Semantics <https://datatracker.ietf.org/doc/h
 Gunicorn understands `systemD socket activation <https://docs.gunicorn.org/en/stable/deploy.html#systemd>`_
 and ``NOTIFY_SOCKET`` and is designed work with minimal privileges or in a sandbox.
 
-Gunicorn should work on any POSIX system running CPython or PyPy, however is only tested on some:
-
-.. list-table:: Platforms
+.. list-table:: Gunicorn should work on any POSIX system running CPython or PyPy, however is only tested (✅) on some:
    :widths: 25 25 50
    :header-rows: 1
 
@@ -76,13 +74,14 @@ Gunicorn should work on any POSIX system running CPython or PyPy, however is onl
      - Architectures
      - Notes
    * - Linux 3.2+
-     - arm64 (✅), x86_64 (✅), x86 (🯄 untested)
-     - CI-tested: Ubuntu (✅), should work: almost any distribution
+     - ✅ arm64, ✅ x86_64, x86 (🯄 untested)
+     - ✅ Ubuntu
+       should work: almost any distribution
    * - Linux 5.15+ @ WSL2
      - x86_64
      - do not use Windows filesystems
-   * - x86_64 (✅), arm64 (✅)
-     - CI-tested: macOS 13 (✅), macOS 14 (✅)
+   * - ✅ macOS 13, ✅ macOS 14
+     - ✅ x86_64, ✅ arm64
      - unresolved performance issues for the arm64+PyPy pair
    * - FreeBSD
      -
@@ -97,9 +96,7 @@ Gunicorn should work on any POSIX system running CPython or PyPy, however is onl
      - any
      - ❌does **not** work (even if non-portable code was updated, Windows PIPE handling was only completed in Python ``> 3.12``)
 
-Gunicorn can be used with different workers, both included and externally provided.
-
-.. list-table:: Worker compatiblity
+.. list-table:: Gunicorn can be used with different workers, both included and externally provided.
    :widths: 50 50
    :header-rows: 1
 
@@ -110,7 +107,7 @@ Gunicorn can be used with different workers, both included and externally provid
    * - thread
      - OK
    * - eventlet
-     - greenlet, only Python ``< 3.13``, *`New usages of eventlet are now heavily discouraged! <https://github.com/eventlet/eventlet?tab=readme-ov-file#warning>`_*
+     - greenlet, only Python ``< 3.13``, `Note: *New usages of eventlet are now heavily discouraged!* <https://github.com/eventlet/eventlet?tab=readme-ov-file#warning>`_
    * - gevent
      - OK
    * - tornado
