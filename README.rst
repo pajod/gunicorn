@@ -136,4 +136,4 @@ details. A number of distributions package Gunicorn:
 .. _`#gunicorn`: https://web.libera.chat/?channels=#gunicorn
 .. _`Libera.chat`: https://libera.chat/
 .. _LICENSE: https://github.com/benoitc/gunicorn/blob/master/LICENSE
-.. _WSGI: https://peps.python.org/pep-0333/
+.. _WSGI: https://peps.python.org/pep-3333/
