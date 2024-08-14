@@ -109,6 +109,15 @@ threads. However `a work has been started
 .. _worker_class: settings.html#worker-class
 .. _`number of workers`: design.html#how-many-workers
 
+Why are are responses delayed on startup/re-exec?
+-------------------------------------------------
+
+If workers are competing for resources during wsgi import, the result may be slower
+than sequential startup. Either avoid duplicate work altogether
+via :ref:`preload-app`. Or, if that is not an option, tune worker spawn sequence by
+adding a delay in the :ref:`pre-fork` to sacrifice overall startup completion time
+for reduced time for first request completion.
+
 Why I don't see any logs in the console?
 ----------------------------------------
 
