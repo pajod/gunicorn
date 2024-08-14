@@ -116,6 +116,15 @@ In version 19.0, Gunicorn doesn't log by default in the console.
 To watch the logs in the console you need to use the option ``--log-file=-``.
 In version 19.2, Gunicorn logs to the console by default again.
 
+Why are are responses delayed on startup/re-exec?
+-------------------------------------------------
+
+If workers are competing for resources during wsgi import, the result may be slower
+than sequential startup. Either avoid duplicate work altogether
+via :ref:`preload-app`. Or, if that is not an option, tune worker spawn sequence by
+adding a delay in the :ref:`pre-fork` to sacrifice overall startup completion time
+for reduced time for first request completion.
+
 Kernel Parameters
 =================
 
