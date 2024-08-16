@@ -4,6 +4,7 @@
 
 import errno
 import os
+import platform
 import socket
 import ssl
 import stat
@@ -189,6 +190,10 @@ def create_sockets(conf, log, fds=None):
                     log.error("Invalid address: %s", str(addr))
                 msg = "connection to {addr} failed: {error}"
                 log.error(msg.format(addr=str(addr), error=str(e)))
+                if e.errno == errno.EOPNOTSUPP:  # (sic!)
+                    if "microsoft" in platform.release().lower():
+                        log.info("hint: mixing win32 filesystems and unix "
+                                 "sockets is not supported.")
                 if i < 5:
                     log.debug("Retrying in 1 second.")
                     time.sleep(1)
