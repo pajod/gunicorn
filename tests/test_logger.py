@@ -1,10 +1,26 @@
 import datetime
+import tempfile
 from types import SimpleNamespace
 
 import pytest
 
 from gunicorn.config import Config
 from gunicorn.glogging import Logger
+from unittest import mock
+
+
+@mock.patch('json.load')
+def test_json_loaded(load):
+    with tempfile.NamedTemporaryFile() as f:
+        f.write("{}".encode())
+        f.flush()
+
+        cfg = Config()
+        cfg.set("logconfig_json", f.name)
+        logger = Logger(cfg)
+        logger.debug("foo")
+
+        load.assert_called_once()
 
 
 def test_atoms_defaults():
