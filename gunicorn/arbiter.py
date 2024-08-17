@@ -59,7 +59,9 @@ class Arbiter:
         self.pidfile = None
         self.systemd = False
         self.worker_age = 0
+        # old master has != 0 until new master is dead or promoted
         self.reexec_pid = 0
+        # new master has != 0 until old master is dead (until promotion)
         self.master_pid = 0
         self.master_name = "Master"
 
@@ -411,8 +413,10 @@ class Arbiter:
         master_pid = os.getpid()
         self.reexec_pid = os.fork()
         if self.reexec_pid != 0:
+            # old master
             return
 
+        # new master
         self.cfg.pre_exec(self)
 
         environ = self.cfg.env_orig.copy()
@@ -515,6 +519,8 @@ class Arbiter:
                 wpid, status = os.waitpid(-1, os.WNOHANG)
                 if not wpid:
                     break
+                if self.reexec_pid == wpid:
+                    self.log.info("Master exited before promotion.")
                 if self.reexec_pid == wpid:
                     self.reexec_pid = 0
                 else:
