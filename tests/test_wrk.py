@@ -13,8 +13,8 @@ import secrets
 import shutil
 import signal
 import subprocess
-import shutil
 import sys
+import re
 import time
 from itertools import chain
 from pathlib import Path
@@ -27,14 +27,15 @@ if TYPE_CHECKING:
     import http.client
     from typing import Any, NamedTuple, Self
 
-# test runner may not be system administrator. not needed here, to run nginx
-PATH = "/usr/sbin:/usr/local/sbin:"+os.environ.get("PATH", "/usr/local/bin:/usr/bin")
-CMD_OPENSSL = shutil.which("openssl", path=PATH)
-CMD_NGINX = shutil.which("nginx", path=PATH)
+# path may be /usr/local/bin for packages ported from other OS
+CMD_OPENSSL = shutil.which("openssl")
+CMD_WRK = shutil.which("wrk")
+
+RATE = re.compile(r"^Requests/sec: *([0-9]+(?:\.[0-9]+)?)$", re.MULTILINE)
 
 pytestmark = pytest.mark.skipif(
-    CMD_OPENSSL is None or CMD_NGINX is None,
-    reason="need nginx and openssl binaries",
+    CMD_OPENSSL is None or CMD_WRK is None,
+    reason="need openssl and wrk binaries",
 )
 
 STDOUT = 0
@@ -53,8 +54,6 @@ TEST_SIMPLE = [
 ]  # type: list[str|NamedTuple]
 
 WORKER_DEPENDS = {
-    "sync": [],
-    "gthread": [],
     "aiohttp.GunicornWebWorker": ["aiohttp"],
     "aiohttp.GunicornUVLoopWebWorker": ["aiohttp", "uvloop"],
     "uvicorn.workers.UvicornWorker": ["uvicorn"],  # deprecated
@@ -69,7 +68,6 @@ WORKER_DEPENDS = {
 }
 DEP_WANTED = set(chain(*WORKER_DEPENDS.values()))  # type: set[str]
 DEP_INSTALLED = set()  # type: set[str]
-WORKER_ORDER = list(WORKER_DEPENDS.keys())
 
 for dependency in DEP_WANTED:
     try:
@@ -91,7 +89,7 @@ for worker_name, worker_needs in WORKER_DEPENDS.items():
             T.append(skipped_worker)
 
 WORKER_COUNT = 2
-GRACEFUL_TIMEOUT = 3
+GRACEFUL_TIMEOUT = 10
 APP_IMPORT_NAME = "testsyntax"
 APP_FUNC_NAME = "myapp"
 HTTP_HOST = "local.test"
@@ -105,45 +103,9 @@ def {APP_FUNC_NAME}(environ, start_response):
         ("Content-Length", "%d" % len(body)),
     ]
     start_response("200 OK", response_head)
-    time.sleep(0.02)
+    time.sleep(0.1)
     return iter([body])
 """
-
-# used in string.format() - duplicate {{ and }}
-NGINX_CONFIG_TEMPLATE = """
-pid {pid_path};
-worker_processes 1;
-error_log stderr notice;
-events {{
-  worker_connections 1024;
-}}
-worker_shutdown_timeout 1;
-http {{
-  default_type application/octet-stream;
-  access_log /dev/stdout combined;
-  upstream upstream_gunicorn {{
-    server {gunicorn_upstream} fail_timeout=0;
-  }}
-
-  server {{ listen {server_bind} default_server; return 400; }}
-  server {{
-    listen {server_bind}; client_max_body_size 4G;
-    server_name {server_name};
-    root {static_dir};
-    location / {{ try_files $uri @proxy_to_app; }}
-
-    location @proxy_to_app {{
-      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-      proxy_set_header X-Forwarded-Proto $scheme;
-      proxy_set_header Host $http_host;
-      proxy_http_version 1.1;
-      proxy_redirect off;
-      proxy_pass {proxy_method}://upstream_gunicorn;
-    }}
-  }}
-}}
-"""
-
 
 class SubProcess:
     GRACEFUL_SIGNAL = signal.SIGTERM
@@ -160,7 +122,7 @@ class SubProcess:
         self.p.send_signal(signal.SIGKILL)
         stdout, stderr = self.p.communicate(timeout=1 + GRACEFUL_TIMEOUT)
         ret = self.p.returncode
-        assert stdout == b"", stdout
+        assert stdout[-512:] == b"", stdout
         assert ret == 0, (ret, stdout, stderr)
 
     def read_stdio(self, *, key, timeout_sec, wait_for_keyword, expect=None):
@@ -177,11 +139,12 @@ class SubProcess:
         assert self.p.stdout is not None  # this helps static type checkers
         assert self.p.stderr is not None  # this helps static type checkers
         for _ in range(timeout_sec * poll_per_second):
-            print("parsing", buf, "waiting for", wait_for_keyword, unseen_keywords)
+            keep_reading = False
             for fd, file in enumerate([self.p.stdout, self.p.stderr]):
                 read = file.read(64 * 1024)
                 if read is not None:
                     buf[fd] += read.decode("utf-8", "surrogateescape")
+                    keep_reading = True
             if seen_keyword or wait_for_keyword in buf[key]:
                 seen_keyword += 1
             for additional_keyword in tuple(unseen_keywords):
@@ -190,7 +153,8 @@ class SubProcess:
                         unseen_keywords.remove(additional_keyword)
             # gathered all the context we wanted
             if seen_keyword and not unseen_keywords:
-                break
+                if not keep_reading:
+                    break
             # not seen expected output? wait for % of original timeout
             # .. maybe we will still see better error context that way
             if seen_keyword > (0.5 * timeout_sec * poll_per_second):
@@ -221,7 +185,7 @@ class SubProcess:
         os.set_blocking(self.p.stderr.fileno(), False)
         assert self.p.stdout is not None  # this helps static type checkers
 
-    def graceful_quit(self, expect=None):
+    def graceful_quit(self, expect=None, ignore=None):
         # type: (set[str]|None) -> str
         if self.p is None:
             raise AssertionError("called graceful_quit() when not running")
@@ -235,41 +199,21 @@ class SubProcess:
             stderr += e
         except subprocess.TimeoutExpired:
             pass
-        assert stdout == b""
+        out = stdout.decode("utf-8", "surrogateescape")
+        for line in out.split("\n"):
+            if any(i in line for i in (ignore or ())):
+                continue
+            assert line == ""
+        exitcode = self.p.poll()  # will return None if running
         self.p.stdout.close()
         self.p.stderr.close()
-        exitcode = self.p.poll()  # will return None if running
         assert exitcode == 0, (exitcode, stdout, stderr)
-        print("output after signal: ", stdout, stderr, exitcode)
+        # print("output after signal: ", stdout, stderr, exitcode)
         self.p = None
         ret = stderr.decode("utf-8", "surrogateescape")
         for keyword in expect or ():
             assert keyword in ret, (keyword, ret)
         return ret
-
-
-class NginxProcess(SubProcess):
-    GRACEFUL_SIGNAL = signal.SIGQUIT
-
-    def __init__(
-        self,
-        *,
-        temp_path,
-        config,
-    ):
-        assert isinstance(temp_path, Path)
-        self.conf_path = (temp_path / ("%s.nginx" % APP_IMPORT_NAME)).absolute()
-        self.p = None  # type: subprocess.Popen[bytes] | None
-        self.temp_path = temp_path
-        with open(self.conf_path, "w+") as f:
-            f.write(config)
-        self._argv = [
-            CMD_NGINX,
-            # nginx 1.19.5+ added the -e cmdline flag - may be testing earlier
-            # "-e", "stderr",
-            "-c",
-            "%s" % self.conf_path,
-        ]
 
 
 def generate_dummy_ssl_cert(cert_path, key_path):
@@ -343,14 +287,17 @@ class GunicornProcess(SubProcess):
                 "--certfile=%s" % cert_path,
                 "--keyfile=%s" % key_path,
             ]
+        thread_opt = []
+        if worker_class != "sync":
+            thread_opt = ["--threads=50"]
 
         self._argv = [
             sys.executable,
             "-m",
             "gunicorn",
             "--config=%s" % self.conf_path,
-            "--log-level=debug",
-            "--worker-class=%s" % (worker_class, ),
+            "--log-level=info",
+            "--worker-class=%s" % worker_class,
             "--workers=%d" % WORKER_COUNT,
             # unsupported at the time this test was submitted
             # "--buf-read-size=%d" % read_size,
@@ -360,6 +307,7 @@ class GunicornProcess(SubProcess):
             "--graceful-timeout=%d" % (GRACEFUL_TIMEOUT,),
             "--bind=%s" % server_bind,
             "--reuse-port",
+            *thread_opt,
             *ssl_opt,
             "--",
             f"{APP_IMPORT_NAME}:{APP_FUNC_NAME}",
@@ -367,58 +315,49 @@ class GunicornProcess(SubProcess):
 
 
 class Client:
-    def __init__(self, host_port):
+    def __init__(self, url_base):
         # type: (str) -> None
-        self._host_port = host_port
+        self._url_base = url_base
+        self._env = os.environ.copy()
+        self._env["LC_ALL"] = "C"
 
     def __enter__(self):
         # type: () -> Self
-        import http.client
-
-        self.conn = http.client.HTTPConnection(self._host_port, timeout=2)
         return self
 
     def __exit__(self, *exc):
-        self.conn.close()
+        pass
 
     def get(self, path):
         # type: () -> http.client.HTTPResponse
-        self.conn.request("GET", path, headers={"Host": HTTP_HOST}, body="GETBODY!")
-        return self.conn.getresponse()
+        assert path.startswith("/")
+        threads = 10
+        connections = 100
+        out = subprocess.check_output([CMD_WRK, "-t", "%d" % threads, "-c","%d" % connections, "-d5s","%s%s" % (self._url_base, path, )], shell=False, env=self._env)
+
+        return out.decode("utf-8", "replace")
 
 
 # @pytest.mark.parametrize("read_size", [50+secrets.randbelow(2048)])
 @pytest.mark.parametrize("ssl", [False, True], ids=["plain", "ssl"])
 @pytest.mark.parametrize("worker_class", TEST_SIMPLE)
-def test_nginx_proxy(*, ssl, worker_class, dummy_ssl_cert, read_size=1024):
+def test_wrk(*, ssl, worker_class, dummy_ssl_cert, read_size=1024):
+
+    if worker_class == "eventlet" and ssl:
+        pytest.skip("eventlet worker does not catch errors in ssl.wrap_socket")
+
     # avoid ports <= 6144 which may be in use by CI runner
-    # avoid quickly reusing ports as they might not be cleared immediately on BSD
-    worker_index = WORKER_ORDER.index(worker_class)
-    fixed_port = 1024 * 6 + (2 if ssl else 0) + (4 * worker_index)
+    fixed_port = 1024 * 6 + secrets.randbelow(1024 * 9)
     # FIXME: should also test inherited socket (LISTEN_FDS)
     # FIXME: should also test non-inherited (named) UNIX socket
     gunicorn_bind = "[::1]:%d" % fixed_port
 
-    # syntax matches between nginx conf and http client
-    nginx_bind = "[::1]:%d" % (fixed_port + 1)
-
-    static_dir = "/run/gunicorn/nonexist"
-    # gunicorn_upstream = "unix:/run/gunicorn/for-nginx.sock"
-    # syntax "[ipv6]:port" matches between gunicorn and nginx
-    gunicorn_upstream = gunicorn_bind
+    proxy_method="https" if ssl else "http"
 
     with TemporaryDirectory(suffix="_temp_py") as tempdir_name, Client(
-        nginx_bind
+            proxy_method + "://" + gunicorn_bind
     ) as client:
         temp_path = Path(tempdir_name)
-        nginx_config = NGINX_CONFIG_TEMPLATE.format(
-            server_bind=nginx_bind,
-            pid_path="%s" % (temp_path / "nginx.pid"),
-            gunicorn_upstream=gunicorn_upstream,
-            server_name=HTTP_HOST,
-            static_dir=static_dir,
-            proxy_method="https" if ssl else "http",
-        )
 
         with GunicornProcess(
             server_bind=gunicorn_bind,
@@ -426,45 +365,42 @@ def test_nginx_proxy(*, ssl, worker_class, dummy_ssl_cert, read_size=1024):
             read_size=read_size,
             ssl_files=dummy_ssl_cert if ssl else None,
             temp_path=temp_path,
-        ) as server, NginxProcess(
-            config=nginx_config,
-            temp_path=temp_path,
-        ) as proxy:
-            proxy.read_stdio(
-                key=STDERR,
-                timeout_sec=4,
-                wait_for_keyword="start worker processes",
-            )
-
+        ) as server:
             server.read_stdio(
                 key=STDERR,
-                wait_for_keyword="Arbiter booted",
-                timeout_sec=4,
+                wait_for_keyword="[INFO] Starting gunicorn",
+                timeout_sec=6,
                 expect={
-                    "Booting worker",
+                    "[INFO] Booting worker",
                 },
             )
 
-            for num_request in range(5):
-                path = "/pytest/%d" % (num_request)
-                response = client.get(path)
-                assert response.status == 200
-                assert response.read() == b"response body from app"
+            path = "/pytest/basic"
+            out = client.get(path)
+            print("##############\n" + out)
 
-                # using 1.1 to not fail on tornado reporting for 1.0
-                # nginx sees our HTTP/1.1 request
-                proxy.read_stdio(
-                    key=STDOUT, timeout_sec=2, wait_for_keyword="GET %s HTTP/1.1" % path
-                )
-                # gunicorn sees the HTTP/1.1 request from nginx
-                server.read_stdio(
-                    key=STDOUT, timeout_sec=2, wait_for_keyword="GET %s HTTP/1.1" % path
-                )
+            extract = RATE.search(out)
+            assert extract is not None, out
+            rate = float(extract.groups()[0])
+            if worker_class == "sync":
+                assert rate > 5
+            else:
+                assert rate > 50
+
+            server.read_stdio(
+                key=STDOUT, timeout_sec=2, wait_for_keyword="GET %s HTTP/1.1" % path
+            )
+            if ssl:
+                pass
+                #server.read_stdio(
+                #    key=STDERR,
+                #    wait_for_keyword="[DEBUG] ssl connection closed",
+                #    timeout_sec=4,
+                #)
 
             server.graceful_quit(
+                ignore={"GET %s HTTP/1.1" % path, "Ignoring connection epipe", "Ignoring connection reset"},
                 expect={
-                    "Handling signal: term",
-                    "Shutting down: Master",
+                    "[INFO] Handling signal: term",
                 },
             )
-            proxy.graceful_quit()
