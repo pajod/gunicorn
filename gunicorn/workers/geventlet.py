@@ -4,6 +4,7 @@
 
 from functools import partial
 import sys
+import ssl
 
 try:
     import eventlet
@@ -19,6 +20,7 @@ from eventlet.greenio import GreenSocket
 import eventlet.wsgi
 import greenlet
 
+from gunicorn import util
 from gunicorn.workers.base_async import AsyncWorker
 from gunicorn.sock import ssl_wrap_socket
 
@@ -154,7 +156,17 @@ class EventletWorker(AsyncWorker):
 
     def handle(self, listener, client, addr):
         if self.cfg.is_ssl:
-            client = ssl_wrap_socket(client, self.cfg)
+            try:
+                req = None
+                client = ssl_wrap_socket(client, self.cfg)
+            except ssl.SSLError as e:
+                if e.args[0] == ssl.SSL_ERROR_EOF:
+                    self.log.debug("ssl connection closed")
+                else:
+                    self.log.debug("Error processing SSL request.")
+                    self.handle_error(req, client, addr, e)
+                util.close(client)
+                return
         super().handle(listener, client, addr)
 
     def run(self):
