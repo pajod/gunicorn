@@ -4,7 +4,6 @@
 import ast
 import email.utils
 import errno
-import fcntl
 import html
 import importlib
 import inspect
@@ -31,6 +30,7 @@ from gunicorn.workers import SUPPORTED_WORKERS
 import urllib.parse
 
 REDIRECT_TO = getattr(os, 'devnull', '/dev/null')
+REASON_PHRASE_RE = re.compile(rb'[ \t\x21-\x7e\x80-\xff]*')
 
 # Server and Date aren't technically hop-by-hop
 # headers, but they are in the purview of the
@@ -251,14 +251,17 @@ def parse_address(netloc, default_port='8000'):
 
 
 def close_on_exec(fd):
-    flags = fcntl.fcntl(fd, fcntl.F_GETFD)
-    flags |= fcntl.FD_CLOEXEC
-    fcntl.fcntl(fd, fcntl.F_SETFD, flags)
+    # available since Python 3.4, equivalent to either:
+    # ioctl(fd, FIOCLEX)
+    # fcntl(fd, F_SETFD, fcntl(fd, F_GETFD) | FD_CLOEXEC)
+    os.set_inheritable(fd, False)
 
 
 def set_non_blocking(fd):
-    flags = fcntl.fcntl(fd, fcntl.F_GETFL) | os.O_NONBLOCK
-    fcntl.fcntl(fd, fcntl.F_SETFL, flags)
+    # available since Python 3.5, equivalent to either:
+    # ioctl(fd, FIONBIO)
+    # fcntl(fd, fcntl.F_SETFL, fcntl(fd, F_GETFL) | O_NONBLOCK)
+    os.set_blocking(fd, False)
 
 
 def close(sock):
@@ -307,6 +310,16 @@ def write_nonblock(sock, data, chunked=False):
 
 
 def write_error(sock, status_int, reason, mesg):
+    # we may reflect user input in mesg
+    #  .. as long as it is escaped appropriately for indicated Content-Type
+    # we should send our own reason text
+    #  .. we shall never send misleading or invalid HTTP status lines
+    if not REASON_PHRASE_RE.fullmatch(reason.encode("latin-1")):
+        raise AssertionError("Attempted to return malformed error reason: %r" % (reason, ))
+    # we should avoid chosing status codes that are already in use
+    #  indicating special handling in our proxies
+    if not (100 <= status_int <= 599):  # RFC9110 15
+        raise AssertionError("Attempted to return invalid error status code: %r" % (status_int, ))
     html_error = textwrap.dedent("""\
     <html>
       <head>
