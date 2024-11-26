@@ -6,10 +6,10 @@ import os
 import random
 import select
 import signal
+import socket
 import sys
 import time
 import traceback
-import socket
 
 from gunicorn.errors import HaltServer, AppImportError
 from gunicorn.pidfile import Pidfile
