@@ -29,6 +29,8 @@ from gunicorn.workers.workertmp import WorkerTmp
 
 class Worker:
 
+    WORKAROUND_BASE_EXCEPTIONS = ()  # none
+
     SIGNALS = [getattr(signal, "SIG%s" % x) for x in (
         "ABRT HUP QUIT INT TERM USR1 USR2 WINCH CHLD".split()
     )]
@@ -109,7 +111,7 @@ class Worker:
 
         # Prevent fd inheritance
         for s in self.sockets:
-            util.close_on_exec(s)
+            util.close_on_exec(s.fileno())
         util.close_on_exec(self.tmp.fileno())
 
         self.wait_fds = self.sockets + [self.PIPE[0]]
@@ -119,7 +121,7 @@ class Worker:
         self.init_signals()
 
         # start the reloader
-        if self.cfg.reload:
+        if self.cfg.reload or self.cfg.reload_extra_files:
             def changed(fname):
                 self.log.info("Worker reloading: %s modified", fname)
                 self.alive = False
@@ -130,7 +132,7 @@ class Worker:
 
             reloader_cls = reloader_engines[self.cfg.reload_engine]
             self.reloader = reloader_cls(extra_files=self.cfg.reload_extra_files,
-                                         callback=changed)
+                                         callback=changed, auto_detect=self.cfg.reload)
 
         self.load_wsgi()
         if self.reloader:
@@ -262,7 +264,7 @@ class Worker:
             if hasattr(req, "uri"):
                 self.log.exception("Error handling request %s", req.uri)
             else:
-                self.log.exception("Error handling request (no URI read)")
+                self.log.debug("Error handling request (no URI read)")
             status_int = 500
             reason = "Internal Server Error"
             mesg = ""

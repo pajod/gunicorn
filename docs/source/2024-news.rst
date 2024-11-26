@@ -2,6 +2,11 @@
 Changelog - 2024
 ================
 
+23.1.0 - 2TBDTBDTBD
+===================
+
+- source distribution (sdist) now includes tox.ini to simplify downstream packaging (:pr:`3269`)
+
 23.0.0 - 2024-08-10
 ===================
 
@@ -24,10 +29,10 @@ Changelog - 2024
 
 ** Breaking changes **
 
-- refuse requests where the uri field is empty (:pr:`3255`)
-- refuse requests with invalid CR/LR/NUL in heade field values (:pr:`3253`)
+- refuse invalid requests where the uri field is empty (:pr:`3255`)
+- refuse invalid requests with CR/LR/NUL in header field values (:pr:`3253`)
 - remove temporary ``--tolerate-dangerous-framing`` switch from 22.0 (:pr:`3260`)
-- If any of the breaking changes affect you, be aware that now refused requests can post a security problem, especially so in setups involving request pipe-lining and/or proxies.
+- If any of these affect you, be aware that now refused requests can pose a security problem, especially so in setups involving request pipe-lining and/or proxies.
 
 22.0.0 - 2024-04-17
 ===================

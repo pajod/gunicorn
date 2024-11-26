@@ -31,6 +31,8 @@ VERSION = "gevent/%s gunicorn/%s" % (gevent.__version__, gunicorn.__version__)
 
 class GeventWorker(AsyncWorker):
 
+    WORKAROUND_BASE_EXCEPTIONS = (gevent.Timeout, )
+
     server_class = None
     wsgi_handler = None
 
@@ -41,7 +43,7 @@ class GeventWorker(AsyncWorker):
         sockets = []
         for s in self.sockets:
             sockets.append(socket.socket(s.FAMILY, socket.SOCK_STREAM,
-                                         fileno=s.sock.fileno()))
+                                         fileno=s.sock.detach()))
         self.sockets = sockets
 
     def notify(self):

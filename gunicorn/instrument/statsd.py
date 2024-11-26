@@ -17,6 +17,7 @@ MTYPE_VAR = "mtype"
 GAUGE_TYPE = "gauge"
 COUNTER_TYPE = "counter"
 HISTOGRAM_TYPE = "histogram"
+TIMER_TYPE = "timer"
 
 
 class Statsd(Logger):
@@ -31,11 +32,14 @@ class Statsd(Logger):
         else:
             address_family = socket.AF_INET
 
+        self.sock = None
         try:
             self.sock = socket.socket(address_family, socket.SOCK_DGRAM)
             self.sock.connect(cfg.statsd_host)
         except Exception:
-            self.sock = None
+            if self.sock is not None:
+                self.sock.close()
+                self.sock = None
 
         self.dogstatsd_tags = cfg.dogstatsd_tags
 
@@ -80,6 +84,8 @@ class Statsd(Logger):
                         self.increment(metric, value)
                     elif typ == HISTOGRAM_TYPE:
                         self.histogram(metric, value)
+                    elif typ == TIMER_TYPE:
+                        self.timer(metric, value)
                     else:
                         pass
 
@@ -101,7 +107,7 @@ class Statsd(Logger):
             status = status.decode('utf-8')
         if isinstance(status, str):
             status = int(status.split(None, 1)[0])
-        self.histogram("gunicorn.request.duration", duration_in_ms)
+        self.timer("gunicorn.request.duration", duration_in_ms)
         self.increment("gunicorn.requests", 1)
         self.increment("gunicorn.request.status.%d" % status, 1)
 
@@ -116,8 +122,11 @@ class Statsd(Logger):
     def decrement(self, name, value, sampling_rate=1.0):
         self._sock_send("{0}{1}:-{2}|c|@{3}".format(self.prefix, name, value, sampling_rate))
 
-    def histogram(self, name, value):
+    def timer(self, name, value):
         self._sock_send("{0}{1}:{2}|ms".format(self.prefix, name, value))
+
+    def histogram(self, name, value):
+        self._sock_send("{0}{1}:{2}|h".format(self.prefix, name, value))
 
     def _sock_send(self, msg):
         try:
