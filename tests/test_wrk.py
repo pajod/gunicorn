@@ -401,6 +401,6 @@ def test_wrk(*, ssl, worker_class, dummy_ssl_cert, read_size=1024):
             server.graceful_quit(
                 ignore={"GET %s HTTP/1.1" % path, "Ignoring connection epipe", "Ignoring connection reset"},
                 expect={
-                    "[INFO] Handling signal: term",
+                    "[INFO] Handling signal: SIGTERM",
                 },
             )

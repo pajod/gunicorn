@@ -463,7 +463,7 @@ def test_nginx_proxy(*, ssl, worker_class, dummy_ssl_cert, read_size=1024):
 
             server.graceful_quit(
                 expect={
-                    "Handling signal: term",
+                    "Handling signal: SIGTERM",
                     "Shutting down: Master",
                 },
             )
