@@ -1,5 +1,15 @@
 name: tox
-on: [push, pull_request]
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - '.github/workflows/tox.yml'
+  pull_request:
+    branches:
+      - master
+  workflow_dispatch:
+  # allow manual trigger
 permissions:
   contents: read # to fetch code (actions/checkout)
 env:
