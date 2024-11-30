@@ -62,7 +62,11 @@ jobs:
           cache-dependency-path: requirements_test.txt
           check-latest: true
           allow-prereleases: ${{ matrix.unsupported }}
-      - name: Add test utils
+      - name: Add max test utils
+        if: matrix.os == 'macos-latest'
+        run: |
+          brew install wrk
+      - name: Add linux test utils
         if: matrix.os == 'ubuntu-latest'
         run: |
           sudo systemctl mask nginx.service
