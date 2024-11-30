@@ -66,6 +66,7 @@ jobs:
         if: matrix.os == 'macos-latest' || matrix.os == 'macos-13'
         run: |
           brew install wrk
+          brew install nginx
       - name: Add linux test utils
         if: matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-20.04'
         run: |
