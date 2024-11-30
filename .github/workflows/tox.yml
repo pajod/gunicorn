@@ -63,11 +63,11 @@ jobs:
           check-latest: true
           allow-prereleases: ${{ matrix.unsupported }}
       - name: Add max test utils
-        if: matrix.os == 'macos-latest'
+        if: matrix.os == 'macos-latest' || matrix.os == 'macos-13'
         run: |
           brew install wrk
       - name: Add linux test utils
-        if: matrix.os == 'ubuntu-latest'
+        if: matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-20.04'
         run: |
           sudo systemctl mask nginx.service
           sudo apt install nginx openssl wrk
