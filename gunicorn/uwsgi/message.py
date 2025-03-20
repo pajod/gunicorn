@@ -6,7 +6,7 @@ from gunicorn.http.body import LengthReader, Body
 from gunicorn.uwsgi.errors import (
     InvalidUWSGIHeader,
     UnsupportedModifier,
-    ForbiddenUWSGIRequest,
+    ForbiddenUWSGIRequest
 )
 from gunicorn.http.errors import InvalidRequestMethod
 
@@ -111,6 +111,9 @@ class UWSGIRequest:
 
         # Extract HTTP request info from vars
         self._extract_request_info()
+
+        if self.method == "CONNECT":
+            raise InvalidRequestMethod(self.method)
 
         return b""
 
