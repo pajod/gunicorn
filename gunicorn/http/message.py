@@ -29,6 +29,8 @@ METHOD_BADCHAR_RE = re.compile("[a-z#]")
 # usually 1.0 or 1.1 - RFC9112 permits restricting to single-digit versions
 VERSION_RE = re.compile(r"HTTP/(\d)\.(\d)")
 RFC9110_5_5_INVALID_AND_DANGEROUS = re.compile(r"[\0\r\n]")
+# also applied to method & version; only URL parser is lax enough for it to matter
+CONFUSING_ASCII_CONTROLS = set(b"\n\t\000")
 
 
 class Message:
@@ -414,6 +416,9 @@ class Request(Message):
         }
 
     def parse_request_line(self, line_bytes):
+        if set(line_bytes) & CONFUSING_ASCII_CONTROLS:
+            raise InvalidRequestLine(bytes_to_str(line_bytes))
+
         bits = [bytes_to_str(bit) for bit in line_bytes.split(b" ", 2)]
         if len(bits) != 3:
             raise InvalidRequestLine(bytes_to_str(line_bytes))
