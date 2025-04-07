@@ -21,6 +21,7 @@ from gunicorn.http.errors import (
     LimitRequestHeaders, LimitRequestLine,
     UnsupportedTransferCoding, ExpectationFailed,
     ConfigurationProblem, ObsoleteFolding,
+    MethodNotAllowed,
 )
 from gunicorn.http.wsgi import Response, default_environ
 from gunicorn.reloader import reloader_engines
@@ -223,6 +224,10 @@ class Worker:
                 mesg = "Invalid Request Line '%s'" % str(exc)
             elif isinstance(exc, InvalidRequestMethod):
                 mesg = "Invalid Method '%s'" % str(exc)
+            elif isinstance(exc, MethodNotAllowed):
+                reason = "Method Not Allowed"
+                mesg = str(exc)
+                status_int = 405
             elif isinstance(exc, InvalidHTTPVersion):
                 mesg = "Invalid HTTP Version '%s'" % str(exc)
             elif isinstance(exc, UnsupportedTransferCoding):

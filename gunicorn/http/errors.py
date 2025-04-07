@@ -47,6 +47,14 @@ class InvalidRequestMethod(ParseException):
         return "Invalid HTTP method: %r" % self.method
 
 
+class MethodNotAllowed(ParseException):
+    def __init__(self, method):
+        self.method = method
+
+    def __str__(self):
+        return "Method not allowed: %r" % (self.method, )
+
+
 class ExpectationFailed(ParseException):
     def __init__(self, expect):
         self.expect = expect

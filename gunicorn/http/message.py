@@ -12,7 +12,7 @@ from gunicorn.http.errors import (
     InvalidRequestLine, InvalidRequestMethod, InvalidHTTPVersion,
     LimitRequestLine, LimitRequestHeaders,
     UnsupportedTransferCoding, ObsoleteFolding,
-    ExpectationFailed,
+    ExpectationFailed, MethodNotAllowed,
 )
 from gunicorn.http.errors import InvalidProxyLine, ForbiddenProxyRequest
 from gunicorn.http.errors import InvalidSchemeHeaders
@@ -436,6 +436,9 @@ class Request(Message):
         # standard restriction: RFC9110 token
         if not TOKEN_RE.fullmatch(self.method):
             raise InvalidRequestMethod(self.method)
+        # unimplemented request target syntax, dangerous treatment in proxies
+        if self.method in {"CONNECT", }:
+            raise MethodNotAllowed(self.method)
         # nonstandard and dangerous
         # methods are merely uppercase by convention, no case-insensitive treatment is intended
         if self.cfg.casefold_http_method:
