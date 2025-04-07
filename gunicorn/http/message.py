@@ -12,6 +12,7 @@ from gunicorn.http.errors import (
     InvalidRequestLine, InvalidRequestMethod, InvalidHTTPVersion,
     LimitRequestLine, LimitRequestHeaders,
     UnsupportedTransferCoding, ObsoleteFolding,
+    ExpectationFailed,
 )
 from gunicorn.http.errors import InvalidProxyLine, ForbiddenProxyRequest
 from gunicorn.http.errors import InvalidSchemeHeaders
@@ -42,6 +43,7 @@ class Message:
         self.body = None
         self.scheme = "https" if cfg.is_ssl else "http"
         self.must_close = False
+        self._expected_100_continue = False
 
         # set headers limits
         self.limit_request_fields = cfg.limit_request_fields
@@ -131,6 +133,20 @@ class Message:
 
             if header_length > self.limit_request_field_size > 0:
                 raise LimitRequestHeaders("limit request headers fields size")
+
+            if not from_trailer and name == "EXPECT":
+                # unquoted expectations are case-insensitive
+                if value.lower() == "100-continue":
+                    if self.version < (1, 1):
+                        # https://datatracker.ietf.org/doc/html/rfc9110#section-10.1.1-12
+                        # "A server that receives a 100-continue expectation
+                        #  in an HTTP/1.0 request MUST ignore that expectation."
+                        pass
+                    else:
+                        self._expected_100_continue = True
+                    # N.B. understood but ignored expect header does not return 417
+                else:
+                    raise ExpectationFailed(value)
 
             if name in secure_scheme_headers:
                 secure = value == secure_scheme_headers[name]
