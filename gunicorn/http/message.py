@@ -46,6 +46,7 @@ class Message:
         self.scheme = "https" if cfg.is_ssl else "http"
         self.must_close = False
         self._expected_100_continue = False
+        self._seen_netloc = None
 
         # set headers limits
         self.limit_request_fields = cfg.limit_request_fields
@@ -135,6 +136,17 @@ class Message:
 
             if header_length > self.limit_request_field_size > 0:
                 raise LimitRequestHeaders("limit request headers fields size")
+
+            if not from_trailer and name == "HOST":
+                # if we parse the URL and split it for the app
+                #  the app can hold us accountable to get this right
+                #  we cannot get it right when we see conflicting values
+                if self._seen_netloc is None:
+                    self._seen_netloc = value
+                else:
+                    # e.g. "HOST.com:443" != "host"
+                    if self._seen_netloc.lower().split(":", 1)[0] != value.lower().split(":", 1)[0]:
+                        raise InvalidHeader(name)
 
             if not from_trailer and name == "EXPECT":
                 # unquoted expectations are case-insensitive
@@ -465,6 +477,8 @@ class Request(Message):
         self.path = parts.path or ""
         self.query = parts.query or ""
         self.fragment = parts.fragment or ""
+        if parts.netloc:
+            self._seen_netloc = parts.netloc
 
         # Version
         match = VERSION_RE.fullmatch(bits[2])
