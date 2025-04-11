@@ -19,8 +19,9 @@ from gunicorn.http.errors import (
     InvalidProxyLine, InvalidRequestLine,
     InvalidRequestMethod, InvalidSchemeHeaders,
     LimitRequestHeaders, LimitRequestLine,
-    UnsupportedTransferCoding,
+    UnsupportedTransferCoding, ExpectationFailed,
     ConfigurationProblem, ObsoleteFolding,
+    MethodNotAllowed,
 )
 from gunicorn.http.wsgi import Response, default_environ
 from gunicorn.reloader import reloader_engines
@@ -212,7 +213,7 @@ class Worker:
             LimitRequestLine, LimitRequestHeaders,
             InvalidProxyLine, ForbiddenProxyRequest,
             InvalidSchemeHeaders, UnsupportedTransferCoding,
-            ConfigurationProblem, ObsoleteFolding,
+            ConfigurationProblem, ObsoleteFolding, ExpectationFailed,
             SSLError,
         )):
 
@@ -223,6 +224,10 @@ class Worker:
                 mesg = "Invalid Request Line '%s'" % str(exc)
             elif isinstance(exc, InvalidRequestMethod):
                 mesg = "Invalid Method '%s'" % str(exc)
+            elif isinstance(exc, MethodNotAllowed):
+                reason = "Method Not Allowed"
+                mesg = str(exc)
+                status_int = 405
             elif isinstance(exc, InvalidHTTPVersion):
                 mesg = "Invalid HTTP Version '%s'" % str(exc)
             elif isinstance(exc, UnsupportedTransferCoding):
@@ -239,6 +244,10 @@ class Worker:
                     req = exc.req  # for access log
             elif isinstance(exc, LimitRequestLine):
                 mesg = "%s" % str(exc)
+            elif isinstance(exc, ExpectationFailed):
+                reason = "Expectation Failed"
+                mesg = str(exc)
+                status_int = 417
             elif isinstance(exc, LimitRequestHeaders):
                 reason = "Request Header Fields Too Large"
                 mesg = "Error parsing headers: '%s'" % str(exc)

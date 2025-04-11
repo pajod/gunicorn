@@ -9,6 +9,10 @@ from gunicorn.http.errors import (NoMoreData, ChunkMissingTerminator,
                                   InvalidChunkSize)
 
 
+# could be more restrictive, but the point is proxy bugs, not parsing extensions
+UNWANTED_CHUNK_CHARS = (set(range(0x00, 1 + 0x1f)) | {0x7f}) - set(b"\t")
+
+
 class ChunkedReader:
     def __init__(self, req, unreader):
         self.req = req
@@ -86,6 +90,9 @@ class ChunkedReader:
 
         data = buf.getvalue()
         line, rest_chunk = data[:idx], data[idx + 2:]
+
+        if set(line) & UNWANTED_CHUNK_CHARS:
+            raise InvalidChunkSize(line)
 
         # RFC9112 7.1.1: BWS before chunk-ext - but ONLY then
         chunk_size, *chunk_ext = line.split(b";", 1)

@@ -12,6 +12,7 @@ from gunicorn.http.errors import (
     InvalidRequestLine, InvalidRequestMethod, InvalidHTTPVersion,
     LimitRequestLine, LimitRequestHeaders,
     UnsupportedTransferCoding, ObsoleteFolding,
+    ExpectationFailed, MethodNotAllowed,
 )
 from gunicorn.http.errors import InvalidProxyLine, ForbiddenProxyRequest
 from gunicorn.http.errors import InvalidSchemeHeaders
@@ -28,6 +29,8 @@ METHOD_BADCHAR_RE = re.compile("[a-z#]")
 # usually 1.0 or 1.1 - RFC9112 permits restricting to single-digit versions
 VERSION_RE = re.compile(r"HTTP/(\d)\.(\d)")
 RFC9110_5_5_INVALID_AND_DANGEROUS = re.compile(r"[\0\r\n]")
+# also applied to method & version; only URL parser is lax enough for it to matter
+CONFUSING_ASCII_CONTROLS = set(b"\n\t\000")
 
 
 class Message:
@@ -42,6 +45,8 @@ class Message:
         self.body = None
         self.scheme = "https" if cfg.is_ssl else "http"
         self.must_close = False
+        self._expected_100_continue = False
+        self._seen_netloc = None
 
         # set headers limits
         self.limit_request_fields = cfg.limit_request_fields
@@ -132,6 +137,31 @@ class Message:
             if header_length > self.limit_request_field_size > 0:
                 raise LimitRequestHeaders("limit request headers fields size")
 
+            if not from_trailer and name == "HOST":
+                # if we parse the URL and split it for the app
+                #  the app can hold us accountable to get this right
+                #  we cannot get it right when we see conflicting values
+                if self._seen_netloc is None:
+                    self._seen_netloc = value
+                else:
+                    # e.g. "HOST.com:443" != "host"
+                    if self._seen_netloc.lower().split(":", 1)[0] != value.lower().split(":", 1)[0]:
+                        raise InvalidHeader(name)
+
+            if not from_trailer and name == "EXPECT":
+                # unquoted expectations are case-insensitive
+                if value.lower() == "100-continue":
+                    if self.version < (1, 1):
+                        # https://datatracker.ietf.org/doc/html/rfc9110#section-10.1.1-12
+                        # "A server that receives a 100-continue expectation
+                        #  in an HTTP/1.0 request MUST ignore that expectation."
+                        pass
+                    else:
+                        self._expected_100_continue = True
+                    # N.B. understood but ignored expect header does not return 417
+                else:
+                    raise ExpectationFailed(value)
+
             if name in secure_scheme_headers:
                 secure = value == secure_scheme_headers[name]
                 scheme = "https" if secure else "http"
@@ -178,7 +208,7 @@ class Message:
             elif name == "TRANSFER-ENCODING":
                 # T-E can be a list
                 # https://datatracker.ietf.org/doc/html/rfc9112#name-transfer-encoding
-                vals = [v.strip() for v in value.split(',')]
+                vals = [v.strip(" \t") for v in value.split(',')]
                 for val in vals:
                     if val.lower() == "chunked":
                         # DANGER: transfer codings stack, and stacked chunking is never intended
@@ -190,11 +220,6 @@ class Message:
                         # safe option: nuke it, its never needed
                         if chunked:
                             raise InvalidHeader("TRANSFER-ENCODING", req=self)
-                    elif val.lower() in ('compress', 'deflate', 'gzip'):
-                        # chunked should be the last one
-                        if chunked:
-                            raise InvalidHeader("TRANSFER-ENCODING", req=self)
-                        self.force_close()
                     else:
                         raise UnsupportedTransferCoding(value)
 
@@ -403,6 +428,9 @@ class Request(Message):
         }
 
     def parse_request_line(self, line_bytes):
+        if set(line_bytes) & CONFUSING_ASCII_CONTROLS:
+            raise InvalidRequestLine(bytes_to_str(line_bytes))
+
         bits = [bytes_to_str(bit) for bit in line_bytes.split(b" ", 2)]
         if len(bits) != 3:
             raise InvalidRequestLine(bytes_to_str(line_bytes))
@@ -420,6 +448,9 @@ class Request(Message):
         # standard restriction: RFC9110 token
         if not TOKEN_RE.fullmatch(self.method):
             raise InvalidRequestMethod(self.method)
+        # unimplemented request target syntax, dangerous treatment in proxies
+        if self.method in {"CONNECT", }:
+            raise MethodNotAllowed(self.method)
         # nonstandard and dangerous
         # methods are merely uppercase by convention, no case-insensitive treatment is intended
         if self.cfg.casefold_http_method:
@@ -446,6 +477,8 @@ class Request(Message):
         self.path = parts.path or ""
         self.query = parts.query or ""
         self.fragment = parts.fragment or ""
+        if parts.netloc:
+            self._seen_netloc = parts.netloc
 
         # Version
         match = VERSION_RE.fullmatch(bits[2])
