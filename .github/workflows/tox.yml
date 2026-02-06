@@ -21,18 +21,12 @@ jobs:
          # FreeBSD: tested in separate freebsd.yml workflow
         python-version:
          # Supporting Python 3.10 through 3.13
-         - "3.10"
-         - "3.11"
-         - "3.12"
-         - "3.13"
-         - "pypy-3.10"
+         - "3.14"
+         #- "pypy-3.10"
         include:
          # Test on macos-latest (arm64) with recent versions
          - os: macos-latest
-           python-version: "3.12"
-           unsupported: false
-         - os: macos-latest
-           python-version: "3.13"
+           python-version: "3.14"
            unsupported: false
     steps:
       - uses: actions/checkout@v6

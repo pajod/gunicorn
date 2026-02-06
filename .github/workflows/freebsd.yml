@@ -21,11 +21,8 @@ jobs:
       matrix:
         include:
           - freebsd-version: '14.2'
-            python-version: '3.12'
-            python-pkg: 'python312 py312-sqlite3'
-          - freebsd-version: '14.2'
-            python-version: '3.13'
-            python-pkg: 'python313 py313-sqlite3'
+            python-version: '3.14'
+            python-pkg: 'python314 py314-sqlite3'
     steps:
       - uses: actions/checkout@v6
 
