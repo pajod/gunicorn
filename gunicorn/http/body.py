@@ -91,8 +91,8 @@ class ChunkedReader:
         chunk_size, *chunk_ext = line.split(b";", 1)
         if chunk_ext:
             # RFC 9112: chunk-ext must not contain bare CR
-            if b'\r' in chunk_ext[0]:
-                raise InvalidChunkExtension("bare CR not allowed")
+            if any(c in chunk_ext[0] for c in (b'\r', b'\n', b'\0')):
+                raise InvalidChunkExtension("bare CR/NL not allowed")
             chunk_size = chunk_size.rstrip(b" \t")
         if any(n not in b"0123456789abcdefABCDEF" for n in chunk_size):
             raise InvalidChunkSize(chunk_size)
