@@ -35,14 +35,10 @@ def _cfg(http_parser, **overrides):
     return cfg
 
 
-@pytest.fixture(params=["python", "fast"])
+@pytest.fixture(params=["python", ])
 def parser_name(request):
     if request.param == "fast":
-        if hasattr(sys, "pypy_version_info"):
-            pytest.skip("gunicorn_h1c not supported on PyPy")
-        gunicorn_h1c = pytest.importorskip("gunicorn_h1c")
-        if not hasattr(gunicorn_h1c.H1CProtocol, "asgi_headers"):
-            pytest.skip("gunicorn_h1c >= 0.6.2 required")
+        pytest.skip("gunicorn_h1c support removed in this unmaintained fork")
     return request.param
 
 

@@ -4,6 +4,7 @@ build:
 	venv/bin/pip install -r requirements_dev.txt
 
 docs:
+	python3 -m scripts.build_settings_doc
 	mkdocs build
 
 docs-serve:

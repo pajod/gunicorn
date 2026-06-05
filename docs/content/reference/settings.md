@@ -56,17 +56,9 @@ A WSGI application path in pattern ``$(MODULE_NAME):$(VARIABLE_NAME)``.
 
 **Default:**
 
-$XDG_RUNTIME_DIR/gunicorn.ctl or $HOME/.gunicorn/gunicorn.ctl
+(unset)
 
-Unix socket path for control interface.
-
-The control socket allows runtime management of Gunicorn via the
-``gunicornc`` command-line tool. Commands include viewing worker
-status, adjusting worker count, and graceful reload/shutdown.
-
-Default: ``$XDG_RUNTIME_DIR/gunicorn.ctl`` if XDG_RUNTIME_DIR is set,
-otherwise ``$HOME/.gunicorn/gunicorn.ctl``. The parent directory is
-created automatically if needed.
+Feature removed from this unmaintained fork. 
 
 Use ``--no-control-socket`` to disable.
 
@@ -1231,10 +1223,12 @@ Change directory to specified directory before loading apps.
 
 **Default:** `False`
 
-Daemonize the Gunicorn process.
+Feature removed from this unmaintained fork.
 
-Detaches the server from the controlling terminal and enters the
-background.
+Launching with inappropriate environment and applying various daemonize hacks in an attempt
+ clean up known-bad environment is way harder
+ than launching with the correct environment.
+Let your system management software (initd, systemd, ..) do it for you!
 
 ### `raw_env`
 
@@ -1981,14 +1975,7 @@ This setting only affects the ``asgi`` worker type.
 
 HTTP parser implementation for ASGI workers.
 
-- auto: Use H1CProtocol if gunicorn_h1c is available, else PythonProtocol (default)
-- fast: Require H1CProtocol from gunicorn_h1c (fail if unavailable)
 - python: Force pure Python PythonProtocol parser
-
-ASGI workers use callback-based parsing in data_received() for efficient
-incremental parsing. The gunicorn_h1c C extension provides significantly
-faster HTTP parsing using picohttpparser with SIMD optimizations.
-
-Install it with: pip install gunicorn[fast]
+- auto: Same as python
 
 !!! info "Added in 25.0.0"

@@ -23,7 +23,6 @@ from gunicorn.util import bytes_to_str, split_request_uri
 
 # Fast parser availability (cached at module level)
 _fast_parser_available = None
-_fast_parser_module = None
 
 # Compatibility flags not supported by the fast parser
 _FAST_PARSER_INCOMPATIBLE_FLAGS = (
@@ -46,53 +45,17 @@ def _check_fast_parser(cfg):
     - http_parser='fast' but gunicorn_h1c < 0.4.1
     - http_parser='fast' but incompatible flags are enabled
     """
-    global _fast_parser_available, _fast_parser_module  # pylint: disable=global-statement
+    global _fast_parser_available   # pylint: disable=global-statement
 
     parser_setting = getattr(cfg, 'http_parser', 'auto')
     if parser_setting == 'python':
         return False
 
     if _fast_parser_available is None:
-        try:
-            import gunicorn_h1c
-            _fast_parser_available = True
-            _fast_parser_module = gunicorn_h1c
-        except ImportError:
+        if True:  # pylint: disable=using-constant-test
             _fast_parser_available = False
 
-    if not _fast_parser_available and parser_setting == 'fast':
-        raise RuntimeError("gunicorn_h1c not installed but http_parser='fast'")
-
-    if not _fast_parser_available:
-        return False
-
-    # Require >= 0.4.1 for limit enforcement
-    if not hasattr(_fast_parser_module, 'LimitRequestLine'):
-        if parser_setting == 'fast':
-            raise RuntimeError(
-                "gunicorn_h1c >= 0.4.1 required for http_parser='fast'. "
-                "Please upgrade: pip install --upgrade gunicorn_h1c"
-            )
-        # In 'auto' mode, fall back to Python parser
-        return False
-
-    # Check for incompatible compatibility flags
-    incompatible = []
-    for flag in _FAST_PARSER_INCOMPATIBLE_FLAGS:
-        if getattr(cfg, flag, False):
-            incompatible.append(flag)
-
-    if incompatible:
-        if parser_setting == 'fast':
-            raise RuntimeError(
-                "http_parser='fast' is incompatible with compatibility flags: %s. "
-                "Use http_parser='python' or disable these flags."
-                % ', '.join(incompatible)
-            )
-        # In 'auto' mode, fall back to Python parser
-        return False
-
-    return True
+    return False
 
 
 # PROXY protocol v2 constants
@@ -307,8 +270,6 @@ class Message:
             if curr.find(":") <= 0:
                 raise InvalidHeader(curr)
             name, value = curr.split(":", 1)
-            if self.cfg.strip_header_spaces:
-                name = name.rstrip(" \t")
             if not TOKEN_RE.fullmatch(name):
                 raise InvalidHeaderName(name)
 
@@ -440,21 +401,9 @@ class Request(Message):
         self.limit_request_line = cfg.limit_request_line
         if self.limit_request_line < 0:
             self.limit_request_line = MAX_REQUEST_LINE
-        # For fast parser: use large value when unlimited (0), since C parser
-        # doesn't support 0 as unlimited. 1MB should be more than enough.
-        if self.limit_request_line == 0:
-            self._fast_limit_request_line = 1024 * 1024  # 1MB
-        elif self.limit_request_line >= MAX_REQUEST_LINE:
-            self._fast_limit_request_line = MAX_REQUEST_LINE
-            self.limit_request_line = MAX_REQUEST_LINE
-        else:
-            self._fast_limit_request_line = self.limit_request_line
 
         self.req_number = req_number
         self.proxy_protocol_info = None
-
-        # Check if fast parser should be used
-        self._use_fast = _check_fast_parser(cfg)
 
         super().__init__(cfg, unreader, peer_addr)
 
@@ -475,98 +424,7 @@ class Request(Message):
         if mode != "off" and self.req_number == 1:
             buf = self._handle_proxy_protocol(unreader, buf, mode)
 
-        # Use fast parser if available
-        if self._use_fast:
-            return self._parse_fast(unreader, buf)
-
         return self._parse_python(unreader, buf)
-
-    def _parse_fast(self, unreader, buf):
-        """Parse request using fast C parser (gunicorn_h1c >= 0.4.1)."""
-        # Read until we have complete headers
-        data = bytes(buf)
-        last_len = 0
-
-        while True:
-            try:
-                # Pass all limit parameters to C parser
-                # Use _fast_limit_request_line which handles 0=unlimited
-                result = _fast_parser_module.parse_request(
-                    data,
-                    last_len=last_len,
-                    limit_request_line=self._fast_limit_request_line,
-                    limit_request_fields=self.limit_request_fields,
-                    limit_request_field_size=self.limit_request_field_size,
-                    permit_unconventional_http_method=self.cfg.permit_unconventional_http_method,
-                    permit_unconventional_http_version=self.cfg.permit_unconventional_http_version,
-                )
-                break
-            except _fast_parser_module.IncompleteError:
-                last_len = len(data)
-                self.read_into(unreader, buf)
-                data = bytes(buf)
-                if len(data) > self.max_buffer_headers + self._fast_limit_request_line:
-                    raise LimitRequestHeaders("max buffer headers")
-            except _fast_parser_module.LimitRequestLine as e:
-                raise LimitRequestLine(str(e))
-            except _fast_parser_module.LimitRequestHeaders as e:
-                raise LimitRequestHeaders(str(e))
-            except _fast_parser_module.InvalidRequestMethod as e:
-                raise InvalidRequestMethod(str(e))
-            except _fast_parser_module.InvalidHTTPVersion as e:
-                raise InvalidHTTPVersion(str(e))
-            except _fast_parser_module.InvalidHeaderName as e:
-                raise InvalidHeaderName(str(e))
-            except _fast_parser_module.InvalidHeader as e:
-                raise InvalidHeader(str(e))
-            except _fast_parser_module.ParseError as e:
-                raise InvalidRequestLine(str(e))
-
-        # Extract parsed data
-        self.method = bytes_to_str(result['method'])
-        self.uri = bytes_to_str(result['path'])
-
-        # Casefold method if configured (validation done by C parser)
-        if self.cfg.casefold_http_method:
-            self.method = self.method.upper()
-
-        # Parse URI parts
-        if len(self.uri) == 0:
-            raise InvalidRequestLine(self.uri)
-        try:
-            parts = split_request_uri(self.uri)
-        except ValueError:
-            raise InvalidRequestLine(self.uri)
-        self.path = parts.path or ""
-        self.query = parts.query or ""
-        self.fragment = parts.fragment or ""
-
-        # Version (validation done by C parser)
-        self.version = (1, result['minor_version'])
-
-        # Headers - convert bytes to strings with uppercase names
-        # gunicorn_h1c returns headers as (bytes, bytes) tuples
-        # Header name/value validation done by C parser; policy (Expect,
-        # secure_scheme_headers, forwarder trust gate, header_map) is enforced
-        # below so the fast path mirrors parse_headers().
-        self.headers = []
-        scheme_state = [False]
-        secure_scheme_headers, forwarder_headers = self._peer_trusted_for_forwarded()
-        for name_bytes, value_bytes in result['headers']:
-            name = bytes_to_str(name_bytes).upper()
-            value = bytes_to_str(value_bytes)
-
-            kept = self._apply_header_policy(
-                name, value, scheme_state,
-                secure_scheme_headers, forwarder_headers,
-            )
-            if kept is None:
-                continue
-            self.headers.append(kept)
-
-        # Return remaining data after headers
-        consumed = result['consumed']
-        return data[consumed:]
 
     def _parse_python(self, unreader, buf):
         """Parse request using pure Python parser."""
@@ -835,10 +693,7 @@ class Request(Message):
         # standard restriction: RFC9110 token
         if not TOKEN_RE.fullmatch(self.method):
             raise InvalidRequestMethod(self.method)
-        # nonstandard and dangerous
         # methods are merely uppercase by convention, no case-insensitive treatment is intended
-        if self.cfg.casefold_http_method:
-            self.method = self.method.upper()
 
         # URI
         self.uri = bits[1]

@@ -20,8 +20,7 @@ def get_parser(cfg, source, source_addr, http2_connection=False):
     """
     # HTTP/2 connection
     if http2_connection:
-        from gunicorn.http2.connection import HTTP2ServerConnection
-        return HTTP2ServerConnection(cfg, source, source_addr)
+        raise NotImplementedError("http2 support removed in this unmaintained fork")
 
     # uWSGI protocol
     protocol = getattr(cfg, 'protocol', 'http')

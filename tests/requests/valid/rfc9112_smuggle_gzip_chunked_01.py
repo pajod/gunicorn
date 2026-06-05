@@ -10,7 +10,7 @@ request = {
     "version": (1, 1),
     "headers": [
         ("HOST", "example.com"),
-        ("TRANSFER-ENCODING", "gzip, chunked"),
+        ("TRANSFER-ENCODING", "identity, chunked"),
     ],
     "body": b"hello",
 }

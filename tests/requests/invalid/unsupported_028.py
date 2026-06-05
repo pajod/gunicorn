@@ -2,4 +2,6 @@
 # This file is part of gunicorn released under the MIT license.
 # See the NOTICE for more information.
 
-# Tests package
+from gunicorn.http.errors import InvalidHeaderName
+
+request = InvalidHeaderName

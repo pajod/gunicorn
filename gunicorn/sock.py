@@ -241,27 +241,9 @@ def _get_alpn_protocols(conf):
     Returns list of ALPN protocol identifiers based on http_protocols setting.
     Returns empty list if HTTP/2 is not configured or available.
     """
-    from gunicorn.config import ALPN_PROTOCOL_MAP
 
-    http_protocols = conf.http_protocols
-    if not http_protocols:
-        return []
-
-    # Only configure ALPN if h2 is in the protocol list
-    if "h2" not in http_protocols:
-        return []
-
-    # Check if h2 library is available
-    from gunicorn.http2 import is_http2_available
-    if not is_http2_available():
-        return []
-
-    # Map to ALPN identifiers, maintaining preference order
-    alpn_protocols = []
-    for proto in http_protocols:
-        if proto in ALPN_PROTOCOL_MAP:
-            alpn_protocols.append(ALPN_PROTOCOL_MAP[proto])
-    return alpn_protocols
+    # http2 support removed
+    return []
 
 
 def ssl_context(conf):
@@ -303,13 +285,3 @@ def get_negotiated_protocol(ssl_socket):
         return ssl_socket.selected_alpn_protocol()
     except (AttributeError, ssl.SSLError):
         return None
-
-
-def is_http2_negotiated(ssl_socket):
-    """Check if HTTP/2 was negotiated on an SSL socket.
-
-    Returns:
-        bool: True if HTTP/2 was negotiated via ALPN.
-    """
-    protocol = get_negotiated_protocol(ssl_socket)
-    return protocol == "h2"

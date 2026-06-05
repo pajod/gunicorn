@@ -355,6 +355,67 @@ class Setting:
 
 Setting = SettingMeta('Setting', (Setting,), {})
 
+def validate_no_control_path(val):
+    if val is None:
+        return
+    raise NotImplementedError("Control socket support has been removed from this unmaintained fork.")
+
+def validate_obsolete_false(val):
+    if val is None:
+        return
+
+    if isinstance(val, bool):
+        return val
+    if not isinstance(val, str):
+        raise TypeError("Invalid type for casting: %s" % val)
+    if val.lower().strip() == "true":
+        raise NotImplementedError("Obsolete flags have been removed from this unmaintained fork.")
+    if val.lower().strip() == "false":
+        return False
+    else:
+        raise ValueError("Invalid boolean: %s" % val)
+
+
+def validate_no_control(val):
+    if val is None:
+        return
+
+    if isinstance(val, bool):
+        return val
+    if not isinstance(val, str):
+        raise TypeError("Invalid type for casting: %s" % val)
+    if val.lower().strip() == "true":
+        raise NotImplementedError("Contol socket feature has been removed from this unmaintained fork.")
+    if val.lower().strip() == "false":
+        return False
+    else:
+        raise ValueError("Invalid boolean: %s" % val)
+
+def validate_no_daemon(val):
+    if val is None:
+        return
+
+    if isinstance(val, bool):
+        return val
+    if not isinstance(val, str):
+        raise TypeError("Invalid type for casting: %s" % val)
+    if val.lower().strip() == "true":
+        raise NotImplementedError("Daemonize hack has been removed from this unmaintained fork.")
+    if val.lower().strip() == "false":
+        return False
+    else:
+        raise ValueError("Invalid boolean: %s" % val)
+
+def validate_zero_dirty_workers(val):
+    if not isinstance(val, int):
+        val = int(val, 0)
+    else:
+        # Booleans are ints!
+        val = int(val)
+    if val != 0:
+        raise NotImplementedError("Dirty worker feature has been removed from this unmaintained fork.")
+    return val
+
 
 def validate_bool(val):
     if val is None:
@@ -1116,14 +1177,16 @@ class Daemon(Setting):
     name = "daemon"
     section = "Server Mechanics"
     cli = ["-D", "--daemon"]
-    validator = validate_bool
+    validator = validate_no_daemon
     action = "store_true"
     default = False
     desc = """\
-        Daemonize the Gunicorn process.
+        Feature removed from this unmaintained fork.
 
-        Detaches the server from the controlling terminal and enters the
-        background.
+        Launching with inappropriate environment and applying various daemonize hacks in an attempt
+         clean up known-bad environment is way harder
+         than launching with the correct environment.
+        Let your system management software (initd, systemd, ..) do it for you!
         """
 
 
@@ -2380,12 +2443,10 @@ class Ciphers(Setting):
 # HTTP/2 Protocol Settings
 
 # Valid protocol identifiers
-VALID_HTTP_PROTOCOLS = frozenset(["h1", "h2", "h3"])
+VALID_HTTP_PROTOCOLS = frozenset(["h1", ])
 # Map protocol identifiers to ALPN protocol names
 ALPN_PROTOCOL_MAP = {
     "h1": "http/1.1",
-    "h2": "h2",
-    "h3": "h3",  # Future: HTTP/3 over QUIC
 }
 
 
@@ -2577,7 +2638,7 @@ class PermitObsoleteFolding(Setting):
     name = "permit_obsolete_folding"
     section = "Server Mechanics"
     cli = ["--permit-obsolete-folding"]
-    validator = validate_bool
+    validator = validate_obsolete_false
     action = "store_true"
     default = False
     desc = """\
@@ -2598,7 +2659,7 @@ class StripHeaderSpaces(Setting):
     name = "strip_header_spaces"
     section = "Server Mechanics"
     cli = ["--strip-header-spaces"]
-    validator = validate_bool
+    validator = validate_obsolete_false
     action = "store_true"
     default = False
     desc = """\
@@ -2664,7 +2725,7 @@ class CasefoldHTTPMethod(Setting):
     name = "casefold_http_method"
     section = "Server Mechanics"
     cli = ["--casefold-http-method"]
-    validator = validate_bool
+    validator = validate_obsolete_false
     action = "store_true"
     default = False
     desc = """\
@@ -2781,7 +2842,7 @@ def validate_http_parser(val):
     if not isinstance(val, str):
         raise TypeError("http_parser must be a string")
     val = val.lower().strip()
-    valid_values = ("auto", "fast", "python")
+    valid_values = ("auto", "python")
     if val not in valid_values:
         raise ValueError("http_parser must be one of: %s" % ", ".join(valid_values))
     return val
@@ -2870,15 +2931,8 @@ class HttpParser(Setting):
     desc = """\
         HTTP parser implementation for ASGI workers.
 
-        - auto: Use H1CProtocol if gunicorn_h1c is available, else PythonProtocol (default)
-        - fast: Require H1CProtocol from gunicorn_h1c (fail if unavailable)
         - python: Force pure Python PythonProtocol parser
-
-        ASGI workers use callback-based parsing in data_received() for efficient
-        incremental parsing. The gunicorn_h1c C extension provides significantly
-        faster HTTP parsing using picohttpparser with SIMD optimizations.
-
-        Install it with: pip install gunicorn[fast]
+        - auto: Same as python
 
         .. versionadded:: 25.0.0
         """
@@ -2969,7 +3023,7 @@ class DirtyWorkers(Setting):
     section = "Dirty Arbiters"
     cli = ["--dirty-workers"]
     meta = "INT"
-    validator = validate_pos_int
+    validator = validate_zero_dirty_workers
     type = int
     default = 0
     desc = """\
@@ -3127,42 +3181,16 @@ class DirtyWorkerExit(Setting):
 
 # Control Socket Settings
 
-
-def _get_default_control_socket():
-    """Get default control socket path based on available directories.
-
-    Prefers XDG_RUNTIME_DIR if available (standard on Linux, sometimes BSD),
-    falls back to $HOME/.gunicorn/ directory.
-    """
-    # Prefer XDG_RUNTIME_DIR if available
-    xdg_runtime = os.environ.get('XDG_RUNTIME_DIR')
-    if xdg_runtime and os.path.isdir(xdg_runtime):
-        return os.path.join(xdg_runtime, 'gunicorn.ctl')
-
-    # Fall back to $HOME/.gunicorn/
-    home = os.path.expanduser('~')
-    gunicorn_dir = os.path.join(home, '.gunicorn')
-    return os.path.join(gunicorn_dir, 'gunicorn.ctl')
-
-
 class ControlSocket(Setting):
     name = "control_socket"
     section = "Control"
     cli = ["--control-socket"]
     meta = "PATH"
-    validator = validate_string
-    default = _get_default_control_socket()
-    default_doc = "$XDG_RUNTIME_DIR/gunicorn.ctl or $HOME/.gunicorn/gunicorn.ctl"
+    validator = validate_no_control_path
+    default = None
+    default_doc = "(unset)"
     desc = """\
-        Unix socket path for control interface.
-
-        The control socket allows runtime management of Gunicorn via the
-        ``gunicornc`` command-line tool. Commands include viewing worker
-        status, adjusting worker count, and graceful reload/shutdown.
-
-        Default: ``$XDG_RUNTIME_DIR/gunicorn.ctl`` if XDG_RUNTIME_DIR is set,
-        otherwise ``$HOME/.gunicorn/gunicorn.ctl``. The parent directory is
-        created automatically if needed.
+        Feature removed from this unmaintained fork. 
 
         Use ``--no-control-socket`` to disable.
 
@@ -3192,7 +3220,7 @@ class ControlSocketDisable(Setting):
     name = "control_socket_disable"
     section = "Control"
     cli = ["--no-control-socket"]
-    validator = validate_bool
+    validator = validate_no_control
     action = "store_true"
     default = False
     desc = """\

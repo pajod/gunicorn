@@ -11,6 +11,7 @@ ignore=
 [MESSAGES CONTROL]
 
 disable=
+    superfluous-parens,
     attribute-defined-outside-init,
     bad-mcs-classmethod-argument,
     bare-except,
@@ -18,7 +19,6 @@ disable=
     cyclic-import,
     duplicate-bases,
     duplicate-code,
-    eval-used,
     fixme,
     import-error,
     import-outside-toplevel,

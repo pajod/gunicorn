@@ -1,71 +1,53 @@
-# Gunicorn
+<table style="border: none"><tbody style="border: none"><tr style="border: none">
+<td style="border: none">
 
-<p align="center">
-  <strong>Gunicorn is maintained by volunteers. If it powers your production, please consider supporting us:</strong><br>
-  <a href="https://github.com/sponsors/benoitc"><img src="https://img.shields.io/badge/GitHub_Sponsors-❤-ea4aaa?style=for-the-badge&logo=github" alt="GitHub Sponsors"></a>
-  <a href="https://checkout.revolut.com/pay/ac271e5e-172a-408b-947b-2f9f79d3a88a"><img src="https://img.shields.io/badge/Revolut-Donate-191c20?style=for-the-badge" alt="Revolut"></a>
-</p>
+## Gunicorn
 
-[![PyPI version](https://img.shields.io/pypi/v/gunicorn.svg?style=flat)](https://pypi.python.org/pypi/gunicorn)
-[![Supported Python versions](https://img.shields.io/pypi/pyversions/gunicorn.svg)](https://pypi.python.org/pypi/gunicorn)
-[![Build Status](https://github.com/benoitc/gunicorn/actions/workflows/tox.yml/badge.svg)](https://github.com/benoitc/gunicorn/actions/workflows/tox.yml)
+This is an unmaintained fork for **testing & integration**.
 
-Gunicorn 'Green Unicorn' is a Python WSGI HTTP Server for UNIX. It's a pre-fork
-worker model ported from Ruby's [Unicorn](https://bogomips.org/unicorn/) project. The Gunicorn server is broadly
-compatible with various web frameworks, simply implemented, light on server
-resource usage, and fairly speedy.
+* See gunicorn [Upstream Repository](https://github.com/benoitc/gunicorn), [PyPI]( https://pypi.python.org/pypi/gunicorn) and [Docs](https://docs.gunicorn.org)
 
-**New in v25**: Per-app worker allocation for dirty arbiters, HTTP/2 support (beta)!
+### License
 
-## Quick Start
+Gunicorn is released under the MIT License. See the [LICENSE](LICENSE) file for more
+details.
 
-```bash
-pip install gunicorn
-gunicorn myapp:app --workers 4
-```
+### CI
 
-For ASGI applications (FastAPI, Starlette):
+[![CI:packaging](https://github.com/pajod/gunicorn/actions/workflows/packaging.yml/badge.svg)](https://github.com/pajod/gunicorn/actions/workflows/packaging.yml)
+[![CI:CodeQL](https://github.com/pajod/gunicorn/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/pajod/gunicorn/actions/workflows/github-code-scanning/codeql)
+[![CI:lint](https://github.com/pajod/gunicorn/actions/workflows/lint.yml/badge.svg)](https://github.com/pajod/gunicorn/actions/workflows/lint.yml)
+[![CI:tox](https://github.com/pajod/gunicorn/actions/workflows/tox.yml/badge.svg)](https://github.com/pajod/gunicorn/actions/workflows/tox.yml)
 
-```bash
-gunicorn myapp:app --worker-class asgi
-```
+</td>
+<td style="border: none">
 
-## Features
+### Notable changes tested in this repository
 
-- WSGI support for Django, Flask, Pyramid, and any WSGI framework
-- **ASGI support** for FastAPI, Starlette, Quart
-- **HTTP/2 support** (beta) with multiplexed streams
-- **Dirty Arbiters** (beta) for heavy workloads (ML models, long-running tasks)
-- uWSGI binary protocol for nginx integration
-- Multiple worker types: sync, gthread, gevent, asgi
-- Graceful worker process management
-- Compatible with Python 3.9+
+ * no ASGI support
+ * no HTTP2 support
+ * no dirty worker
+ * no ctl interface
+ * no daemonize hack
+ * no requirement on mkdocs-material to build docs
+ * no `--casefold-http-method` / `--strip-header-spaces` / `--permit-obsolete-folding`
+ * reduced test & docs dependencies
 
-## Documentation
+ * [PR #3214: document server hooks](https://github.com/benoitc/gunicorn/pull/3214)
+ * [PR #3127: refactor socket wrappers](https://github.com/benoitc/gunicorn/pull/3127)
+ * [PR #3124: multiple --reload-extra-file](https://github.com/benoitc/gunicorn/pull/3124)
+ * [PR #3134: CI test older dependencies](https://github.com/benoitc/gunicorn/pull/3134)
+ * [PR #3191: correct log severity](https://github.com/benoitc/gunicorn/pull/3191)
+ * [PR #3197: fix percent-formatting](https://github.com/benoitc/gunicorn/pull/3197)
+ * [PR #3201: add type stubs](https://github.com/benoitc/gunicorn/pull/3201)
+ * [PR #3210: remove fcntl](https://github.com/benoitc/gunicorn/pull/3210)
+ * [PR #3211: CI for 3.13](https://github.com/benoitc/gunicorn/pull/3211)
+ * unsubmitted: Updated django example for Django 4.2
+ * unsubmitted: New CI job to verify docs are up to date
 
-Full documentation at https://gunicorn.org
+</tbody>
+</tr></tbody></table>
 
-- [Quickstart](https://gunicorn.org/quickstart/)
-- [Configuration](https://gunicorn.org/configure/)
-- [Deployment](https://gunicorn.org/deploy/)
-- [Settings Reference](https://gunicorn.org/reference/settings/)
+### Status Images
 
-## Community
-
-- Report bugs on [GitHub Issues](https://github.com/benoitc/gunicorn/issues)
-- Chat in [#gunicorn](https://web.libera.chat/?channels=#gunicorn) on [Libera.chat](https://libera.chat/)
-- See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines
-
-## Support
-
-Powering Python apps since 2010. Support continued development.
-
-[![Become a Sponsor](https://img.shields.io/badge/Become_a_Sponsor-❤-ff69b4)](https://gunicorn.org/sponsor/)
-
-### Sponsors
-
-<a href="https://enki-multimedia.eu"><img src="docs/content/assets/enki-multimedia.svg" alt="Enki Multimedia" height="50" /></a>
-
-## License
-
-Gunicorn is released under the MIT License. See the [LICENSE](https://github.com/benoitc/gunicorn/blob/master/LICENSE) file for details.
+![gunicorn upstream Stats by Repobeats](https://repobeats.axiom.co/api/embed/c1f1846401d9b4913dd9019aead4b1883e954739.svg "Repobeats analytics image")

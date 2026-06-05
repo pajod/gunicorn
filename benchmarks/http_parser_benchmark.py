@@ -117,43 +117,6 @@ def benchmark_wsgi_parser(request_data: bytes, cfg: Config, iterations: int) -> 
     )
 
 
-def benchmark_asgi_parser(request_data: bytes, cfg: Config, iterations: int) -> BenchmarkResult:
-    """Benchmark ASGI parser."""
-    from gunicorn.asgi.parser import HttpParser
-
-    times = []
-    parser_type = cfg.http_parser
-
-    for _ in range(iterations):
-        # Create fresh parser for each iteration
-        parser = HttpParser(cfg, ('127.0.0.1', 8000), is_ssl=False)
-
-        start = time.perf_counter()
-        result = parser.feed(bytearray(request_data))
-        end = time.perf_counter()
-
-        times.append(end - start)
-
-        # Verify parsing worked
-        assert result is not None
-        assert result.method is not None
-
-    total_time = sum(times)
-    avg_time = statistics.mean(times)
-    min_time = min(times)
-    max_time = max(times)
-
-    return BenchmarkResult(
-        name=f"ASGI {parser_type}",
-        iterations=iterations,
-        total_time=total_time,
-        avg_time_us=avg_time * 1_000_000,
-        min_time_us=min_time * 1_000_000,
-        max_time_us=max_time * 1_000_000,
-        requests_per_sec=iterations / total_time,
-    )
-
-
 def print_result(result: BenchmarkResult, baseline: BenchmarkResult = None):
     """Print benchmark result."""
     speedup = ""
@@ -182,23 +145,6 @@ def run_benchmark_suite(name: str, request_data: bytes, iterations: int):
     result_wsgi_python = benchmark_wsgi_parser(request_data, cfg_python, iterations)
     results.append(result_wsgi_python)
 
-    # WSGI Fast (if available)
-    if FAST_AVAILABLE:
-        cfg_fast = create_wsgi_config(use_fast=True)
-        result_wsgi_fast = benchmark_wsgi_parser(request_data, cfg_fast, iterations)
-        results.append(result_wsgi_fast)
-
-    # ASGI Python
-    cfg_python = create_wsgi_config(use_fast=False)
-    result_asgi_python = benchmark_asgi_parser(request_data, cfg_python, iterations)
-    results.append(result_asgi_python)
-
-    # ASGI Fast (if available)
-    if FAST_AVAILABLE:
-        cfg_fast = create_wsgi_config(use_fast=True)
-        result_asgi_fast = benchmark_asgi_parser(request_data, cfg_fast, iterations)
-        results.append(result_asgi_fast)
-
     # Print results
     print("\nResults (avg time per request):")
     print("-" * 60)
@@ -209,11 +155,6 @@ def run_benchmark_suite(name: str, request_data: bytes, iterations: int):
         print_result(result_wsgi_fast, result_wsgi_python)
 
     print()
-
-    # Print ASGI results
-    print_result(result_asgi_python)
-    if FAST_AVAILABLE:
-        print_result(result_asgi_fast, result_asgi_python)
 
     return results
 
@@ -253,11 +194,8 @@ def main():
         # Calculate overall speedups
         wsgi_python_avg = statistics.mean([r.avg_time_us for r in all_results if r.name == "WSGI python"])
         wsgi_fast_avg = statistics.mean([r.avg_time_us for r in all_results if r.name == "WSGI fast"])
-        asgi_python_avg = statistics.mean([r.avg_time_us for r in all_results if r.name == "ASGI python"])
-        asgi_fast_avg = statistics.mean([r.avg_time_us for r in all_results if r.name == "ASGI fast"])
 
         print(f"\nWSGI: Fast parser is {wsgi_python_avg/wsgi_fast_avg:.2f}x faster than Python parser")
-        print(f"ASGI: Fast parser is {asgi_python_avg/asgi_fast_avg:.2f}x faster than Python parser")
     else:
         print("\nInstall gunicorn_h1c to see fast parser comparison:")
         print("  pip install gunicorn_h1c")

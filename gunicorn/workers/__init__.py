@@ -10,5 +10,4 @@ SUPPORTED_WORKERS = {
     "gevent_pywsgi": "gunicorn.workers.ggevent.GeventPyWSGIWorker",
     "tornado": "gunicorn.workers.gtornado.TornadoWorker",
     "gthread": "gunicorn.workers.gthread.ThreadWorker",
-    "asgi": "gunicorn.workers.gasgi.ASGIWorker",
 }

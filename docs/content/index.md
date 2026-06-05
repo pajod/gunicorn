@@ -1,7 +1,9 @@
 ---
-template: home.html
 title: Gunicorn - Python WSGI HTTP Server
 ---
+
+
+<h4>Beware: You are not browsing the official docs, but those of an unmaintained fork</h4>
 
 <section class="hero">
   <div class="container">

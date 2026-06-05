@@ -8,6 +8,7 @@ from gunicorn.uwsgi.errors import (
     UnsupportedModifier,
     ForbiddenUWSGIRequest,
 )
+from gunicorn.http.errors import InvalidRequestMethod
 
 
 # Maximum number of variables to prevent DoS
