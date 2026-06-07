@@ -32,6 +32,7 @@ details.
  * no requirement on mkdocs-material to build docs
  * no `--casefold-http-method` / `--strip-header-spaces` / `--permit-obsolete-folding`
  * reduced test & docs dependencies
+ * no implicit --config=$PWD/gunicorn.conf.py execution
 
  * [PR #3214: document server hooks](https://github.com/benoitc/gunicorn/pull/3214)
  * [PR #3127: refactor socket wrappers](https://github.com/benoitc/gunicorn/pull/3127)

@@ -24,7 +24,7 @@ regenerated during every documentation build.
 
 **Command line:** `-c CONFIG`, `--config CONFIG`
 
-**Default:** `'./gunicorn.conf.py'`
+**Default:** `None`
 
 [The Gunicorn config file](../configure.md#configuration-file).
 

@@ -655,7 +655,7 @@ class ConfigFile(Setting):
     cli = ["-c", "--config"]
     meta = "CONFIG"
     validator = validate_string
-    default = "./gunicorn.conf.py"
+    default = None
     desc = """\
         :ref:`The Gunicorn config file<configuration_file>`.
 
