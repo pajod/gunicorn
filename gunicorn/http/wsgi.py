@@ -33,6 +33,15 @@ class FileWrapper:
             self.close = filelike.close
 
     def __getitem__(self, key):
+        # mirrors cPython 3.9 (method entirely removed in 3.11)
+        # https://bugs.python.org/issue45132
+        import warnings
+        warnings.warn(
+            "FileWrapper's __getitem__ method ignores 'key' parameter. "
+            "Use iterator protocol instead.",
+            DeprecationWarning,
+            stacklevel=2
+        )
         data = self.filelike.read(self.blksize)
         if data:
             return data
