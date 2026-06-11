@@ -511,13 +511,13 @@ class Response:
 
         self.send_headers()
 
-        if self.is_chunked():
+        if self.chunked:
             chunk_size = "%X\r\n" % nbytes
             self.sock.sendall(chunk_size.encode('utf-8'))
         if nbytes > 0:
             self.sock.sendfile(respiter.filelike, offset=offset, count=nbytes)
 
-        if self.is_chunked():
+        if self.chunked:
             self.sock.sendall(b"\r\n")
 
         os.lseek(fileno, offset, os.SEEK_SET)
@@ -525,6 +525,7 @@ class Response:
         return True
 
     def write_file(self, respiter):
+        assert self.status is not None
         if not self.sendfile(respiter):
             for item in respiter:
                 self.write(item)
