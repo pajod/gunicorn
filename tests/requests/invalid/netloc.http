@@ -1,0 +1,5 @@
+GET https://hosta/foo/bar HTTP/1.0\r\n
+Host: hostb\r\n
+\r\n
+Connection: close\r\n
+baz

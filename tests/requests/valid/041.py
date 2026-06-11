@@ -3,7 +3,7 @@ request = {
     "uri": uri("scheme+ext://user+ext:password!@[::1]:8000/path?query#frag"),
     "version": (1, 1),
     "headers": [
-        ("HOST", "localhost"),
+        ("HOST", "[::1]:8000"),
         ("CONTENT-LENGTH", "3"),
     ],
     "body": b'odd'

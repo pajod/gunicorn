@@ -170,6 +170,7 @@ class Message:
         self.peer_addr = peer_addr
         self.remote_addr = peer_addr
         self.version = None
+        self.host = None
         self.headers = []
         self.trailers = []
         self.body = None
@@ -335,6 +336,13 @@ class Message:
 
             if header_length > self.limit_request_field_size > 0:
                 raise LimitRequestHeaders("limit request headers fields size")
+
+            # multiple, yet not exactly-identical host headers
+            if not from_trailer and name == "HOST":
+                if self.host is None:
+                    self.host = value
+                elif self.host != value:
+                    raise InvalidHeader(name)
 
             kept = self._apply_header_policy(
                 name, value, scheme_state,
@@ -766,6 +774,11 @@ class Request(Message):
         self.path = parts.path or ""
         self.query = parts.query or ""
         self.fragment = parts.fragment or ""
+
+        if parts.netloc:
+            # user:pass@host
+            host = parts.netloc.split("@", 1)[-1]
+            self.host = host
 
         # Version
         match = VERSION_RE.fullmatch(bits[2])
