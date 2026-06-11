@@ -77,7 +77,8 @@ class Arbiter:
 
         cwd = util.getcwd()
 
-        args = sys.argv[:]
+        # N.B. not sys.argv - mangling via `python -m` invocation is not reversible!
+        args = sys.orig_argv[:]
         args.insert(0, sys.executable)
 
         # init start context
