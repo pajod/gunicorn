@@ -1157,6 +1157,13 @@ class ReusePort(Setting):
     desc = """\
         Set the ``SO_REUSEPORT`` flag on the listening socket.
 
+        Note that if Gunicorn sits behind an Nginx Proxy, the current implementation
+        of how connections are distributed across workers can make SO_REUSEPORT result in
+        *worse* tail latency than simply launching multiple instances at different
+        ports/sockets, and having nginx decide where to forward requests using the
+        <https://nginx.org/en/docs/http/ngx_http_upstream_module.html#least_time>_`least_time`
+        or `least_conn` settings.
+
         .. versionadded:: 19.8
         """
 
