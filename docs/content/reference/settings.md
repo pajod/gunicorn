@@ -103,9 +103,7 @@ Restart workers when code changes.
 This setting is intended for development. It will cause workers to be
 restarted whenever application code changes.
 
-The reloader is incompatible with application preloading. When using a
-paste configuration be sure that the server block does not import any
-application code or the reload will not work as designed.
+The reloader is incompatible with application preloading.
 
 The default behavior is to attempt inotify with a fallback to file
 system polling. Generally, inotify should be preferred if available
@@ -1205,6 +1203,13 @@ to enable or disable its usage.
 
 Set the ``SO_REUSEPORT`` flag on the listening socket.
 
+Note that if Gunicorn sits behind an Nginx Proxy, the current implementation
+of how connections are distributed across workers can make SO_REUSEPORT result in
+*worse* tail latency than simply launching multiple instances at different
+ports/sockets, and having nginx decide where to forward requests using the
+<https://nginx.org/en/docs/http/ngx_http_upstream_module.html#least_time>_`least_time`
+or `least_conn` settings.
+
 !!! info "Added in 19.8"
 
 ### `chdir`
@@ -1444,12 +1449,7 @@ e.g.
 
 **Default:** `None`
 
-Load a PasteDeploy config file. The argument may contain a ``#``
-symbol followed by the name of an app section from the config file,
-e.g. ``production.ini#admin``.
-
-At this time, using alternate server blocks is not supported. Use the
-command line arguments to control server configuration instead.
+Feature removed from this unmaintained fork.
 
 ### `proxy_protocol`
 
@@ -1553,13 +1553,7 @@ access Gunicorn.
 
 **Default:** `[]`
 
-Set a PasteDeploy global config variable in ``key=value`` form.
-
-The option can be specified multiple times.
-
-The variables are passed to the PasteDeploy entrypoint. Example::
-
-    $ gunicorn -b 127.0.0.1:8000 --paste development.ini --paste-global FOO=1 --paste-global BAR=2
+Feature removed from this unmaintained fork.
 
 !!! info "Added in 19.7"
 

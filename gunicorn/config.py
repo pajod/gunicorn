@@ -238,25 +238,6 @@ class Config:
     def reuse_port(self):
         return self.settings['reuse_port'].get()
 
-    @property
-    def paste_global_conf(self):
-        raw_global_conf = self.settings['raw_paste_global_conf'].get()
-        if raw_global_conf is None:
-            return None
-
-        global_conf = {}
-        for e in raw_global_conf:
-            s = util.bytes_to_str(e)
-            try:
-                k, v = re.split(r'(?<!\\)=', s, maxsplit=1)
-            except ValueError:
-                raise RuntimeError("environment setting %r invalid" % s)
-            k = k.replace('\\=', '=')
-            v = v.replace('\\=', '=')
-            global_conf[k] = v
-
-        return global_conf
-
 
 class SettingMeta(type):
     def __new__(cls, name, bases, attrs):
@@ -359,6 +340,12 @@ def validate_no_control_path(val):
     if val is None:
         return
     raise NotImplementedError("Control socket support has been removed from this unmaintained fork.")
+
+def validate_obsolete_none(val):
+    if val is None:
+        return
+    raise NotImplementedError("Obsolete flags have been removed from this unmaintained fork.")
+
 
 def validate_obsolete_false(val):
     if val is None:
@@ -1013,9 +1000,7 @@ class Reload(Setting):
         This setting is intended for development. It will cause workers to be
         restarted whenever application code changes.
 
-        The reloader is incompatible with application preloading. When using a
-        paste configuration be sure that the server block does not import any
-        application code or the reload will not work as designed.
+        The reloader is incompatible with application preloading.
 
         The default behavior is to attempt inotify with a fallback to file
         system polling. Generally, inotify should be preferred if available
@@ -1853,15 +1838,10 @@ class Paste(Setting):
     section = "Server Mechanics"
     cli = ["--paste", "--paster"]
     meta = "STRING"
-    validator = validate_string
+    validator = validate_obsolete_none
     default = None
     desc = """\
-        Load a PasteDeploy config file. The argument may contain a ``#``
-        symbol followed by the name of an app section from the config file,
-        e.g. ``production.ini#admin``.
-
-        At this time, using alternate server blocks is not supported. Use the
-        command line arguments to control server configuration instead.
+        Feature removed from this unmaintained fork.
         """
 
 
@@ -2629,13 +2609,7 @@ class PasteGlobalConf(Setting):
     default = []
 
     desc = """\
-        Set a PasteDeploy global config variable in ``key=value`` form.
-
-        The option can be specified multiple times.
-
-        The variables are passed to the PasteDeploy entrypoint. Example::
-
-            $ gunicorn -b 127.0.0.1:8000 --paste development.ini --paste-global FOO=1 --paste-global BAR=2
+        Feature removed from this unmaintained fork.
 
         .. versionadded:: 19.7
         """

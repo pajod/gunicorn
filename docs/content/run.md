@@ -136,19 +136,4 @@ possible by pointing the `config` key at a Gunicorn configuration file.
 
 #### Using Gunicorn's Paste support
 
-Use the [`paste`](reference/settings.md#paste) option to load a Paste configuration directly
-with the Gunicorn CLI. This unlocks Gunicorn's reloader and hot code upgrades,
-while still letting Paste define the application object.
-
-```bash
-gunicorn --paste development.ini -b :8080 --chdir /path/to/project
-```
-
-Select a different application section by appending the name:
-
-```bash
-gunicorn --paste development.ini#admin -b :8080 --chdir /path/to/project
-```
-
-In both modes Gunicorn will honor any Paste `loggers` configuration unless you
-override it with Gunicorn-specific [logging settings](reference/settings.md#logging).
+Feature removed from this unmaintained fork.

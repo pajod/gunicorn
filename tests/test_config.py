@@ -29,8 +29,6 @@ def alt_cfg_file():
     return os.path.join(dirname, "config", "test_cfg_alt.py")
 def cfg_file_with_wsgi_app():
     return os.path.join(dirname, "config", "test_cfg_with_wsgi_app.py")
-def paster_ini():
-    return os.path.join(dirname, "..", "examples", "frameworks", "pylonstest", "nose.ini")
 
 
 class AltArgs:
