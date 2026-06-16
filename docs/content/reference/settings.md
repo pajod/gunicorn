@@ -58,7 +58,7 @@ A WSGI application path in pattern ``$(MODULE_NAME):$(VARIABLE_NAME)``.
 
 (unset)
 
-Feature removed from this unmaintained fork. 
+Feature removed from this unmaintained fork.
 
 Use ``--no-control-socket`` to disable.
 
