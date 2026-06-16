@@ -552,4 +552,3 @@ class TestWorkerLifecycle:
             arbiter.murder_workers()
 
         mock_kill.assert_called_once_with(42, signal.SIGKILL)
-

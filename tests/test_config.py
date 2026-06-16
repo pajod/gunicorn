@@ -5,7 +5,6 @@
 import os
 import re
 import sys
-import tempfile
 
 import pytest
 
@@ -550,4 +549,3 @@ def test_str():
         assert False, 'missing expected setting lines? {}'.format(
             OUTPUT_MATCH.keys()
         )
-

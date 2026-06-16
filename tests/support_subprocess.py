@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import http.client
 import importlib
 import logging
@@ -10,7 +12,11 @@ import sys
 import time
 from itertools import chain
 from pathlib import Path
-from typing import Any, Self
+from typing import Any, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    # Python 3.11, only used in annotation
+    from typing import Self
 
 import pytest
 
