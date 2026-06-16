@@ -315,18 +315,6 @@ def close_graceful(sock, timeout=2.0, max_drain=65536):
             pass
 
 
-try:
-    from os import closerange
-except ImportError:
-    def closerange(fd_low, fd_high):
-        # Iterate through and close all file descriptors.
-        for fd in range(fd_low, fd_high):
-            try:
-                os.close(fd)
-            except OSError:  # ERROR, fd wasn't open to begin with (ignored)
-                pass
-
-
 def write_chunk(sock, data):
     if isinstance(data, str):
         data = data.encode('utf-8')

@@ -1,11 +1,13 @@
-from typing import Literal, Protocol
+from typing import TYPE_CHECKING, Literal, Protocol
 
 from _typeshed import Incomplete
 
-from gunicorn._type import _t_peer
 from gunicorn.config import Config
 from gunicorn.http.body import Body
 from gunicorn.http.unreader import Unreader
+
+if TYPE_CHECKING:
+    from gunicorn._type import _t_peer
 
 class ParserProtocol(Protocol):
     cfg: Config

@@ -130,6 +130,7 @@ def _ip_in_allow_list(ip_str, allow_list, networks):
             return True
     return False
 
+
 RFC3986_2_URI_SPECIALS = (
     # gen-delims
     ":/?#[]@"

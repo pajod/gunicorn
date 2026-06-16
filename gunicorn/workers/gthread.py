@@ -499,7 +499,6 @@ class ThreadWorker(base.Worker):
 
         return False
 
-
     def handle_request(self, req, conn):
         environ = {}
         resp = None

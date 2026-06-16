@@ -2,8 +2,6 @@
 # This file is part of gunicorn released under the MIT license.
 # See the NOTICE for more information.
 
-import os
-
 from gunicorn.errors import ConfigError
 from gunicorn.app.base import Application
 from gunicorn import util

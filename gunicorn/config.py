@@ -336,10 +336,12 @@ class Setting:
 
 Setting = SettingMeta('Setting', (Setting,), {})
 
+
 def validate_no_control_path(val):
     if val is None:
         return
     raise NotImplementedError("Control socket support has been removed from this unmaintained fork.")
+
 
 def validate_obsolete_none(val):
     if val is None:
@@ -378,6 +380,7 @@ def validate_no_control(val):
     else:
         raise ValueError("Invalid boolean: %s" % val)
 
+
 def validate_no_daemon(val):
     if val is None:
         return
@@ -392,6 +395,7 @@ def validate_no_daemon(val):
         return False
     else:
         raise ValueError("Invalid boolean: %s" % val)
+
 
 def validate_zero_dirty_workers(val):
     if not isinstance(val, int):
@@ -3174,7 +3178,7 @@ class ControlSocket(Setting):
     default = None
     default_doc = "(unset)"
     desc = """\
-        Feature removed from this unmaintained fork. 
+        Feature removed from this unmaintained fork.
 
         Use ``--no-control-socket`` to disable.
 
@@ -3215,6 +3219,7 @@ class ControlSocketDisable(Setting):
 
         .. versionadded:: 25.1.0
         """
+
 
 def validate_if_no_app(val):
     # FIXME: refactor all of this subclassing stdlib argparse

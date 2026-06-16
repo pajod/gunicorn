@@ -37,7 +37,7 @@ details.
  * regression test for basic nginx setup
  * less permissive HTTP parser validation
  * no paste deploy support
- * permit `--reload-extra-files` without `--reload`
+ * permit `--reload-extra-file` without `--reload`
  * new `--on-fatal=`
 
 </tbody>
